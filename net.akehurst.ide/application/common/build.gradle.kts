@@ -1,0 +1,4 @@
+dependencies {
+    commonMainImplementation(project(":gui"))
+
+}
