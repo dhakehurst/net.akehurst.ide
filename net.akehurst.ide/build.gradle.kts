@@ -117,6 +117,9 @@ subprojects {
         }
        // macosArm64()
        // macosX64()
+//        wasmJs {
+//
+//        }
 
         sourceSets {
             all {

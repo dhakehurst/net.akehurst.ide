@@ -24,7 +24,7 @@ external var resourcesPath: String = definedExternally
 
 actual class Gui : GuiAbstract() {
 
-    val workerScriptName = "${aglScriptBasePath}/browser-worker.js"
+    val workerScriptName = "${aglScriptBasePath}/js-worker.js"
     override val languageService = AglLanguageServiceByWorker(
         SharedWorker(workerScriptName, options = WorkerOptions(type = WorkerType.MODULE)),
         AglEditorLogger { logLevel: LogLevel, msg: String, t: Throwable? ->
@@ -38,7 +38,7 @@ actual class Gui : GuiAbstract() {
      override suspend fun start() {
          super.start()
          onWasmReady {
-             CanvasBasedWindow("SysML v2") {
+             CanvasBasedWindow("IDE") {
                  Column(modifier = Modifier.fillMaxSize()) {
                      content()
                  }

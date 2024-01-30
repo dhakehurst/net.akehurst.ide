@@ -9,6 +9,7 @@ import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
@@ -27,7 +28,7 @@ object AppTheme {
     class Colors(
         val backgroundDark: Color = Color(0xFF2B2B2B),
         val backgroundMedium: Color = Color(0xFF313335),
-        val backgroundLight: Color = Color(0xFF3C3F41),
+        val backgroundLight: Color = Color(0xFFFFFF),
         val borderDark: Color = Color(0xFF2F2F2F),
         val borderMedium: Color = Color(0xFF46494B),
         val borderLight: Color = Color(0xFF54585B),
@@ -58,9 +59,18 @@ object AppTheme {
         val searchSelectionStrokeColor: Color = Color(0xFF3C704B),
         val searchSelectionActiveStrokeColor: Color = Color(0xFFBBBBBB),
 
-        val material: ColorScheme = darkColorScheme(
+        val dark: ColorScheme = darkColorScheme(
             background = backgroundDark,
             surface = backgroundLight,
+            primary = primary,
+            secondary = secondary,
+            onBackground = codeColor,
+            onSurface = textColor
+        ),
+
+        val light: ColorScheme = lightColorScheme(
+            background = backgroundLight,
+            surface = backgroundDark,
             primary = primary,
             secondary = secondary,
             onBackground = codeColor,

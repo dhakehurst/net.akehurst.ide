@@ -24,7 +24,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.*
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import korlibs.image.color.ColorTransform
+import korlibs.image.color.Colors
+
 import kotlinx.coroutines.launch
 import net.akehurst.ide.user.inf.User
 import net.akehurst.kotlin.compose.editor.*
@@ -43,9 +48,12 @@ import net.akehurst.language.api.processor.RegexEngineKind
 import net.akehurst.language.api.processor.ScannerKind
 import net.akehurst.language.api.scanner.Scanner
 import net.akehurst.language.api.sppt.Sentence
+import net.akehurst.language.api.style.AglStyle
 import net.akehurst.language.api.style.AglStyleModel
+import net.akehurst.language.api.style.AglStyleRule
 import net.akehurst.language.editor.api.*
 import net.akehurst.language.editor.common.AglStyleHandler
+import kotlin.math.min
 
 expect class Gui() : GuiAbstract {
 
@@ -58,6 +66,15 @@ data class AutocompleteItemDefault(
     override fun equalTo(other: AutocompleteItem): Boolean = this.name == other.name
 }
 
+val String.toComposeColor: Color
+    get() {
+        val rgba = when {
+            this.startsWith("#") -> Colors[this.lowercase()]
+            else -> Colors[CssColours.nameToHex[this.lowercase()]!!]
+        }
+        return Color(rgba.r, rgba.g, rgba.b, rgba.a)
+    }
+
 abstract class GuiAbstract : User {
 
     val ep = EndPointIdentity("ide", "")
@@ -65,7 +82,24 @@ abstract class GuiAbstract : User {
     val aglOptions = Agl.options<Any, Any> { }
     val regexEngineKind = RegexEngineKind.PLATFORM
     var scannerMatchables = listOf<Matchable>()
-    val styleHandler = AglStyleHandler(langId)
+    val styleHandler = object : AglStyleHandler(langId) {
+        override fun <EditorStyleType : Any> convert(rule: AglStyleRule): EditorStyleType {
+            val ss = rule.styles.values.map { style ->
+                when (style.name) {
+                    "foreground" -> SpanStyle(color = style.value.toComposeColor)
+                    "background" -> SpanStyle(background = style.value.toComposeColor)
+                    "font-style" -> when (style.value) {
+                        "bold" -> SpanStyle(fontWeight = FontWeight.Bold)
+                        "italic" -> SpanStyle(fontStyle = FontStyle.Italic)
+                        else -> SpanStyle() //unsupported
+                    }
+
+                    else -> SpanStyle() //unsupported
+                }
+            }.reduce { acc, it -> it.merge(acc) }
+            return ss as EditorStyleType
+        }
+    }
     val simpleScanner: Scanner by lazy {
         val regexEngine = when (regexEngineKind) {
             RegexEngineKind.PLATFORM -> RegexEnginePlatform
@@ -96,9 +130,19 @@ abstract class GuiAbstract : User {
                 override fun processorDeleteResponse(endPointIdentity: EndPointIdentity, status: MessageStatus, message: String) {
                 }
 
-                override fun processorSetStyleResponse(endPointIdentity: EndPointIdentity, status: MessageStatus, message: String, styleModel: AglStyleModel?) {
-                    this@GuiAbstract.styleHandler.updateStyleModel(styleModel ?: AglStyleModelDefault(emptyList()))
-                    ready = true
+                override fun processorSetStyleResponse(endPointIdentity: EndPointIdentity, status: MessageStatus, message: String, issues: List<LanguageIssue>, styleModel: AglStyleModel?) {
+                    when(status) {
+                        MessageStatus.START -> Unit
+                        MessageStatus.SUCCESS -> {
+                            this@GuiAbstract.styleHandler.updateStyleModel(styleModel ?: AglStyleModelDefault(emptyList()))
+                            ready = true
+                        }
+                        MessageStatus.FAILURE -> {
+                            issues.forEach {
+                                println(it) //TODO
+                            }
+                        }
+                    }
                 }
 
                 override fun sentenceCodeCompleteResponse(
@@ -138,7 +182,7 @@ abstract class GuiAbstract : User {
                             lineTokens.forEachIndexed { index, tokens ->
                                 // could get empty tokens for a line from a partial parse
                                 val lineStart = tokens.firstOrNull()?.position ?: 0 // if not tokens then no conversion so line start pos does not matter
-                                //this@GuiAbstract.tokensByLine[startLine + index] = convertTokens(tokens, lineStart)
+                                this@GuiAbstract.tokensByLine[startLine + index] = convertTokens(tokens, lineStart)
                             }
                         }
 
@@ -159,7 +203,7 @@ abstract class GuiAbstract : User {
         )
 
         val grmrStr = FileSystem.read("languages/SysML_2_Std/grammar.agl")
-        val styleStr = FileSystem.read("languages/SysML_2_Std/style.agl")
+        val styleStr = FileSystem.read("languages/SysML_2_Std/style-light.agl")
         languageService.request.processorCreateRequest(
             ep,
             langId,
@@ -195,7 +239,7 @@ abstract class GuiAbstract : User {
         val tree = remember { mutableStateOf(mutableListOf(TreeNode("<no project>", emptyList()))) }
 
         return MaterialTheme(
-            colorScheme = AppTheme.colors.material,
+            colorScheme = AppTheme.colors.light,
             typography = AppTheme.typography.material
         ) {
             ModalNavigationDrawer(
@@ -288,17 +332,18 @@ abstract class GuiAbstract : User {
     fun onTextChange(text: String) {
         if (ready) {
             tokensByLine.clear()
-            println("textChange")
+//            println("textChange")
             this.languageService.request.sentenceProcessRequest(ep, langId, text, aglOptions)
         }
     }
 
     fun getLineTokens(lineNumber: Int, lineOffset: Int, lineText: String): List<EditorLineToken> {
-        println("getLineTokens")
+//        println("getLineTokens")
         return tokensByLine[lineNumber] ?: getTokensByScan(lineNumber, lineOffset, lineText)
     }
 
     fun getTokensByScan(lineNumber: Int, lineOffset: Int, lineText: String): List<EditorLineToken> {
+//        println("getTokensByScan($lineNumber,$lineOffset,'${lineText.substring(0, min(5, lineText.length))}...')")
         val sr = simpleScanner.scan(SentenceDefault(lineText), 0, lineOffset)
         val aglTokens = this.styleHandler.transformToTokens(sr.tokens)
         val edTokens = convertTokens(aglTokens, lineOffset)
@@ -311,13 +356,9 @@ abstract class GuiAbstract : User {
         EditorLineTokenDef(
             start = s,
             finish = s + tok.length,
-            style = tok.styles.map {
-                when (it) {
-                    AglStyleHandler.EDITOR_NO_STYLE -> SpanStyle(color = Color.Green)
-                    else -> SpanStyle(color = Color.Blue)
-                }
-
-            }.reduce { acc, it -> acc.merge(it) }
+            style = tok.styles
+                .map { styleHandler.editorStyleFor<SpanStyle>(it) ?: SpanStyle() }
+                .reduce { acc, it -> it.merge(acc) }
         )
     }
 

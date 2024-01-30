@@ -1,5 +1,9 @@
+$nostyle {
+    foreground: white;
+    background: transparent;
+}
 $keyword, DEFINED_BY, SPECIALIZES, SUBSETS, REFERENCES, REDEFINES {
-    foreground: blue;
+    foreground: cyan;
     font-style: bold;
 }
 

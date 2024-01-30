@@ -1,0 +1,7 @@
+
+
+//kotlin {
+//    wasmJs {
+//        binaries.executable()
+//    }
+//}
