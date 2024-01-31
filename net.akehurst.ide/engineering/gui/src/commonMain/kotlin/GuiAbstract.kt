@@ -26,13 +26,13 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
-import korlibs.image.color.ColorTransform
 import korlibs.image.color.Colors
-
 import kotlinx.coroutines.launch
 import net.akehurst.ide.user.inf.User
 import net.akehurst.kotlin.compose.editor.*
+import net.akehurst.kotlin.compose.editor.api.*
 import net.akehurst.language.agl.agl.parser.SentenceDefault
 import net.akehurst.language.agl.api.runtime.Rule
 import net.akehurst.language.agl.language.style.asm.AglStyleModelDefault
@@ -42,18 +42,13 @@ import net.akehurst.language.agl.regex.RegexEnginePlatform
 import net.akehurst.language.agl.scanner.Matchable
 import net.akehurst.language.agl.scanner.ScannerAbstract
 import net.akehurst.language.agl.sppt.CompleteTreeDataNode
-import net.akehurst.language.api.processor.CompletionItem
-import net.akehurst.language.api.processor.LanguageIssue
-import net.akehurst.language.api.processor.RegexEngineKind
-import net.akehurst.language.api.processor.ScannerKind
+import net.akehurst.language.api.processor.*
 import net.akehurst.language.api.scanner.Scanner
 import net.akehurst.language.api.sppt.Sentence
-import net.akehurst.language.api.style.AglStyle
 import net.akehurst.language.api.style.AglStyleModel
 import net.akehurst.language.api.style.AglStyleRule
 import net.akehurst.language.editor.api.*
 import net.akehurst.language.editor.common.AglStyleHandler
-import kotlin.math.min
 
 expect class Gui() : GuiAbstract {
 
@@ -75,7 +70,29 @@ val String.toComposeColor: Color
         return Color(rgba.r, rgba.g, rgba.b, rgba.a)
     }
 
+// Wanted order
+// 1 references
+// 2 literals words (alphabetical
+// 3 literals symbols
+// 4 patterns
+// 5 segments
+val CompletionItem.orderValue get() = when (this.kind) {
+    CompletionItemKind.REFERRED -> 1
+    CompletionItemKind.LITERAL -> when {
+        GuiAbstract.REGEX_LETTER.matchesAt(this.text,0) -> {
+            2
+        }
+        else -> 3
+    }
+    CompletionItemKind.PATTERN -> 4
+    CompletionItemKind.SEGMENT -> 5
+}
+
 abstract class GuiAbstract : User {
+
+    companion object {
+        val REGEX_LETTER = Regex("[a-zA-Z]")
+    }
 
     val ep = EndPointIdentity("ide", "")
     val langId = "sysml"
@@ -124,6 +141,9 @@ abstract class GuiAbstract : User {
         languageService.addResponseListener(
             ep, object : LanguageServiceResponse {
                 override fun processorCreateResponse(endPointIdentity: EndPointIdentity, status: MessageStatus, message: String, issues: List<LanguageIssue>, scannerMatchables: List<Matchable>) {
+                    scannerMatchables.forEach {
+                        it.using(RegexEnginePlatform)
+                    }
                     this@GuiAbstract.scannerMatchables = scannerMatchables
                 }
 
@@ -131,12 +151,13 @@ abstract class GuiAbstract : User {
                 }
 
                 override fun processorSetStyleResponse(endPointIdentity: EndPointIdentity, status: MessageStatus, message: String, issues: List<LanguageIssue>, styleModel: AglStyleModel?) {
-                    when(status) {
+                    when (status) {
                         MessageStatus.START -> Unit
                         MessageStatus.SUCCESS -> {
                             this@GuiAbstract.styleHandler.updateStyleModel(styleModel ?: AglStyleModelDefault(emptyList()))
                             ready = true
                         }
+
                         MessageStatus.FAILURE -> {
                             issues.forEach {
                                 println(it) //TODO
@@ -153,13 +174,28 @@ abstract class GuiAbstract : User {
                     completionItems: List<CompletionItem>
                 ) {
                     val auto = autoCompleteResults.removeFirstOrNull()
+
+                    val sorted = completionItems.sortedWith { a, b ->
+                        val av = a.orderValue
+                        val bv = b.orderValue
+                        when {
+                            av > bv -> 1
+                            av < bv -> -1
+                            else -> {
+                                a.text.compareTo(b.text)
+                            }
+                        }
+                    }
                     if (null != auto) {
                         when (status) {
                             MessageStatus.SUCCESS -> {
-                                val items = completionItems.map {
+                                val items = sorted.map {
                                     object : AutocompleteItem {
                                         //val kind = it.kind
-                                        override val name: String get() = it.name
+                                        override val name: String? get() = when(it.kind) {
+                                            CompletionItemKind.LITERAL ->  null
+                                            else -> it.name
+                                        }
                                         override val text: String get() = it.text
                                         override fun equalTo(other: AutocompleteItem): Boolean = when {
                                             name != other.name -> false
@@ -224,6 +260,19 @@ abstract class GuiAbstract : User {
             ep,
             langId,
             styleStr
+        )
+    }
+
+    @OptIn(ExperimentalMaterial3Api::class)
+    @Composable
+    fun content2() {
+        var text by remember { mutableStateOf(TextFieldValue("")) }
+        OutlinedTextField(
+            value = text,
+            label = { Text(text = "Enter Your Name") },
+            onValueChange = {
+                text = it
+            }
         )
     }
 
@@ -306,13 +355,16 @@ abstract class GuiAbstract : User {
 //                    )
 
                     CodeEditor(
-                        initialText = initText,
                         modifier = Modifier
                             .padding(innerPadding)
                             .fillMaxSize(),
                         onTextChange = this::onTextChange,
-                        getLineTokens = ::getLineTokens,
-                        requestAutocompleteSuggestions = ::requestAutocompleteSuggestions
+                        editorState = EditorState(
+                            initialText = initText,
+                            defaultTextStyle = SpanStyle(color = MaterialTheme.colorScheme.onBackground, background = MaterialTheme.colorScheme.background),
+                            getLineTokens = ::getLineTokens,
+                            requestAutocompleteSuggestions = ::requestAutocompleteSuggestions
+                        ),
                     )
                 }
             }
@@ -368,15 +420,13 @@ abstract class GuiAbstract : User {
     }
 }
 
-val rx = Regex("\n")
-val String.lineEndsAt get() = rx.findAll(this + "\n")
-
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TestEd(
     initialText: String,
     modifier: Modifier = Modifier
 ) {
+
     println("TestEd")
     // var inputText by remember { mutableStateOf(initialText) }
     // var viewText by remember { mutableStateOf(initialText) }
@@ -390,7 +440,6 @@ fun TestEd(
         ScrollState(initial = 0)
     }
     val inputScrollerPosition = rememberSaveable(Orientation.Vertical, saver = TextFieldScrollerPosition.Saver) { TextFieldScrollerPosition(Orientation.Vertical) }
-    val lineEndsAt = remember { mutableStateListOf<MatchResult>(*initialText.lineEndsAt.toList().toTypedArray()) }
 
 //    OutlinedTextField(
 //        value = text,

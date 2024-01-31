@@ -94,25 +94,11 @@ subprojects {
             }
         }
         js("js", IR) {
+            generateTypeScriptDefinitions()
             useEsModules()
-            tasks.withType<KotlinJsCompile>().configureEach {
-                kotlinOptions {
-                    useEsClasses = true
-                }
-            }
             nodejs {
-                testTask {
-                    useMocha {
-                        timeout = "5000"
-                    }
-                }
             }
             browser {
-                testTask {
-                    useMocha {
-                        timeout = "5000"
-                    }
-                }
             }
         }
        // macosArm64()
@@ -124,6 +110,11 @@ subprojects {
         sourceSets {
             all {
                 languageSettings.optIn("kotlin.ExperimentalStdlibApi")
+            }
+        }
+        tasks.withType<KotlinJsCompile>().configureEach {
+            kotlinOptions {
+                useEsClasses = true
             }
         }
     }

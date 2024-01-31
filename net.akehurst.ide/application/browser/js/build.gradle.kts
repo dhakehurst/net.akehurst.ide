@@ -15,6 +15,7 @@ kotlin {
         binaries.executable()
         browser {
             webpackTask {
+                output.library = "${project.group}-${project.name}"
                 mainOutputFileName = "${project.group}-${project.name}.js"
             }
         }
@@ -35,24 +36,24 @@ compose.experimental {
 
 
 val workerTask = tasks.register<Copy>("copyAglEditorWorkerJs") {
-    dependsOn(":browser-worker:jsBrowserProductionWebpack")
-    dependsOn(":browser-worker:jsBrowserDistribution")
+    dependsOn(":js-worker:jsBrowserProductionWebpack")
+    dependsOn(":js-worker:jsBrowserDistribution")
     dependsOn("jsProcessResources")
-    from("$buildDir/../browser-worker/dist/js/productionExecutable") {
-        include("browser-worker.js")
-        include("browser-worker.js.map")
+    from("$buildDir/../js-worker/dist/js/productionExecutable") {
+        include("js-worker.js")
+        include("js-worker.js.map")
     }
     into(file("$buildDir/processedResources/js/main"))
 
 }
 
 val workerTaskDev = tasks.register<Copy>("copyAglEditorWorkerJsDev") {
-    dependsOn(":browser-worker:jsBrowserDevelopmentWebpack")
-    dependsOn(":browser-worker:jsBrowserDevelopmentExecutableDistribution")
+    dependsOn(":js-worker:jsBrowserDevelopmentWebpack")
+    dependsOn(":js-worker:jsBrowserDevelopmentExecutableDistribution")
     dependsOn("jsProcessResources")
-    from("$buildDir/../browser-worker/dist/js/developmentExecutable") {
-        include("browser-worker.js")
-        include("browser-worker.js.map")
+    from("$buildDir/../js-worker/dist/js/developmentExecutable") {
+        include("js-worker.js")
+        include("js-worker.js.map")
     }
     into(file("$buildDir/processedResources/js/main"))
 

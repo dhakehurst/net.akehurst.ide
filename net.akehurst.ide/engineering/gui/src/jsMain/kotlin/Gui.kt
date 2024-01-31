@@ -28,8 +28,12 @@ actual class Gui : GuiAbstract() {
     override val languageService = AglLanguageServiceByWorker(
         SharedWorker(workerScriptName, options = WorkerOptions(type = WorkerType.MODULE)),
         AglEditorLogger { logLevel: LogLevel, msg: String, t: Throwable? ->
-            console.log("$logLevel: $msg")
-            t?.let { console.log("$logLevel: $t") }
+            when {
+                logLevel <= LogLevel.Information -> {
+                    console.log("$logLevel: $msg")
+                    t?.let { console.log("$logLevel: $t") }
+                }
+            }
         }
     )
 

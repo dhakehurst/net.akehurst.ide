@@ -4,14 +4,6 @@
     <meta charset="UTF-8">
     <title>IDE</title>
     <link rel="stylesheet" type="text/css" href="./index.css">
-    <script type="importmap">
-        {
-            "imports": {
-              "@js-joda/core": "./@js-joda/core/dist/js-joda.esm.js"
-            }
-        }
-    </script>
-    <script src="skiko.js"></script>
 </head>
 <body>
 
@@ -21,11 +13,20 @@
 
 </main>
 
+
+<script type="importmap">
+        {
+            "imports": {
+              "@js-joda/core": "./@js-joda/core/dist/js-joda.esm.js"
+            }
+        }
+</script>
+<script src="skiko.js"></script>
 <script>
     var aglScriptBasePath = ".";
     var resourcesPath = ".";
 </script>
-<script type="module" src="./net.akehurst.ide-js.mjs"></script>
+<script src="./net.akehurst.ide-js.js"></script>
 
 </body>
 
