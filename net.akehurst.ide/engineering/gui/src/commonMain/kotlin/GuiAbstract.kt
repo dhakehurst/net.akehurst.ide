@@ -333,7 +333,9 @@ abstract class GuiAbstract : User {
                                     Text(text = "Open Project Folder")
                                     Text(text = "New File", modifier = Modifier.clickable(
                                         onClick = {
-                                            openProjectFolderPath?.let { newFile(it) }
+                                            scope.launch {
+                                                openProjectFolderPath?.let { newFile(it) }
+                                            }
                                         }
                                     ))
                                 }
