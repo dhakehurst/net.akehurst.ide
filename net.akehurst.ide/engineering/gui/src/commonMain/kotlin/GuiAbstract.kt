@@ -5,6 +5,7 @@ package net.akehurst.ide.gui
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -76,17 +77,20 @@ val String.toComposeColor: Color
 // 3 literals symbols
 // 4 patterns
 // 5 segments
-val CompletionItem.orderValue get() = when (this.kind) {
-    CompletionItemKind.REFERRED -> 1
-    CompletionItemKind.LITERAL -> when {
-        GuiAbstract.REGEX_LETTER.matchesAt(this.text,0) -> {
-            2
+val CompletionItem.orderValue
+    get() = when (this.kind) {
+        CompletionItemKind.REFERRED -> 1
+        CompletionItemKind.LITERAL -> when {
+            GuiAbstract.REGEX_LETTER.matchesAt(this.text, 0) -> {
+                2
+            }
+
+            else -> 3
         }
-        else -> 3
+
+        CompletionItemKind.PATTERN -> 4
+        CompletionItemKind.SEGMENT -> 5
     }
-    CompletionItemKind.PATTERN -> 4
-    CompletionItemKind.SEGMENT -> 5
-}
 
 abstract class GuiAbstract : User {
 
@@ -136,6 +140,8 @@ abstract class GuiAbstract : User {
     val autoCompleteResults = mutableListOf<AutocompleteSuggestion>()
 
     var ready = false
+    var openProjectFolderPath: String? = null
+    var openFilePath: String? = null
 
     override suspend fun start() {
         languageService.addResponseListener(
@@ -192,10 +198,11 @@ abstract class GuiAbstract : User {
                                 val items = sorted.map {
                                     object : AutocompleteItem {
                                         //val kind = it.kind
-                                        override val name: String? get() = when(it.kind) {
-                                            CompletionItemKind.LITERAL ->  null
-                                            else -> it.name
-                                        }
+                                        override val name: String?
+                                            get() = when (it.kind) {
+                                                CompletionItemKind.LITERAL -> null
+                                                else -> it.name
+                                            }
                                         override val text: String get() = it.text
                                         override fun equalTo(other: AutocompleteItem): Boolean = when {
                                             name != other.name -> false
@@ -265,14 +272,23 @@ abstract class GuiAbstract : User {
 
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
-    fun content2() {
+    fun content1() {
         var text by remember { mutableStateOf(TextFieldValue("")) }
-        OutlinedTextField(
+        TextField(
             value = text,
             label = { Text(text = "Enter Your Name") },
             onValueChange = {
                 text = it
             }
+        )
+    }
+
+    @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+    @Composable
+    fun content2() {
+        val state by remember { mutableStateOf(TextFieldState("")) }
+        BasicTextField2(
+            state = state
         )
     }
 
@@ -283,9 +299,25 @@ abstract class GuiAbstract : User {
         val numbers = (0..50).joinToString(separator = "\n") { "$it" }
         val initText = "" //"hello world\nhello bill!"
 
+        val defaultTextStyle = SpanStyle(color = MaterialTheme.colorScheme.onBackground, background = MaterialTheme.colorScheme.background)
         val drawerState = rememberDrawerState(DrawerValue.Closed)
         val scope = rememberCoroutineScope()
-        val tree = remember { mutableStateOf(mutableListOf(TreeNode("<no project>", emptyList()))) }
+        val treeState by remember { mutableStateOf(TreeViewState()) }
+        val editorState by remember {
+            mutableStateOf(
+                EditorState(
+                    initialText = initText,
+                    onTextChange = { txt ->
+                        scope.launch {
+                            this@GuiAbstract.onTextChange(txt)
+                        }
+                    },
+                    defaultTextStyle = defaultTextStyle,
+                    getLineTokens = ::getLineTokens,
+                    requestAutocompleteSuggestions = ::requestAutocompleteSuggestions
+                )
+            )
+        }
 
         return MaterialTheme(
             colorScheme = AppTheme.colors.light,
@@ -296,7 +328,16 @@ abstract class GuiAbstract : User {
                 drawerContent = {
                     ModalDrawerSheet {
                         NavigationDrawerItem(
-                            label = { Text(text = "Open Project Folder") },
+                            label = {
+                                Column {
+                                    Text(text = "Open Project Folder")
+                                    Text(text = "New File", modifier = Modifier.clickable(
+                                        onClick = {
+                                            openProjectFolderPath?.let { newFile(it) }
+                                        }
+                                    ))
+                                }
+                            },
                             selected = false,
                             icon = {
                                 Icon(
@@ -306,15 +347,29 @@ abstract class GuiAbstract : User {
                             },
                             onClick = {
                                 scope.launch {
-                                    val topLevelItems = openProjectFolder()
-                                    tree.value.clear()
-                                    tree.value.addAll(topLevelItems)
+                                    openProjectFolderPath = openProjectFolder()
+                                    openProjectFolderPath?.let {
+                                        val topLevelItems = listFolderContent(it)
+                                        treeState.setNewItems(topLevelItems)
+                                    }
+
                                 }
                             }
                         )
                         Divider()
                         TreeView(
-                            tree.value
+                            state = treeState,
+                            onSelectItem = {
+                                scope.launch {
+                                    val path = it.data["path"] as String?
+                                    path?.let {
+                                        val fileContent = openFile(it)
+                                        editorState.setNewText(fileContent)
+                                        openFilePath = it
+                                        drawerState.close()
+                                    }
+                                }
+                            }
                         )
                         // ...other drawer items
                     }
@@ -358,13 +413,7 @@ abstract class GuiAbstract : User {
                         modifier = Modifier
                             .padding(innerPadding)
                             .fillMaxSize(),
-                        onTextChange = this::onTextChange,
-                        editorState = EditorState(
-                            initialText = initText,
-                            defaultTextStyle = SpanStyle(color = MaterialTheme.colorScheme.onBackground, background = MaterialTheme.colorScheme.background),
-                            getLineTokens = ::getLineTokens,
-                            requestAutocompleteSuggestions = ::requestAutocompleteSuggestions
-                        ),
+                        editorState = editorState,
                     )
                 }
             }
@@ -379,13 +428,20 @@ abstract class GuiAbstract : User {
 
     val tokensByLine = mutableMapOf<Int, List<EditorLineToken>>()
 
-    abstract suspend fun openProjectFolder(): List<TreeNode>
+    abstract suspend fun openProjectFolder(): String
+    abstract suspend fun listFolderContent(filePath: String): List<TreeNode>
+    abstract suspend fun newFile(parentPath: String): String
+    abstract suspend fun openFile(filePath: String): String
+    abstract suspend fun saveFile(filePath: String, content: String)
 
-    fun onTextChange(text: String) {
+    suspend fun onTextChange(text: String) {
         if (ready) {
             tokensByLine.clear()
 //            println("textChange")
             this.languageService.request.sentenceProcessRequest(ep, langId, text, aglOptions)
+            openFilePath?.let { path ->
+                saveFile(path, text)
+            }
         }
     }
 

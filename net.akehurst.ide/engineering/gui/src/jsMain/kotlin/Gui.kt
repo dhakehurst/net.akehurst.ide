@@ -68,4 +68,12 @@ actual class Gui : GuiAbstract() {
         }
         return list
     }
+
+    override suspend fun openFile(filePath: String): String {
+        TODO("not implemented")
+    }
+
+    override suspend fun saveFile(filePath: String, content: String) {
+        TODO("not implemented")
+    }
 }
