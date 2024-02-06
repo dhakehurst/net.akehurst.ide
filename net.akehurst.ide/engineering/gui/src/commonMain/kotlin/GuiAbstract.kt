@@ -140,8 +140,8 @@ abstract class GuiAbstract : User {
     val autoCompleteResults = mutableListOf<AutocompleteSuggestion>()
 
     var ready = false
-    var openProjectFolderPath: String? = null
-    var openFilePath: String? = null
+    var openProjectFolderPath: DirectoryHandle? = null
+    var openFilePath: FileHandle? = null
 
     override suspend fun start() {
         languageService.addResponseListener(
@@ -245,8 +245,8 @@ abstract class GuiAbstract : User {
             }
         )
 
-        val grmrStr = FileSystem.read("languages/SysML_2_Std/grammar.agl")
-        val styleStr = FileSystem.read("languages/SysML_2_Std/style-light.agl")
+        val grmrStr = AppFileSystem.read("languages/SysML_2_Std/grammar.agl")
+        val styleStr = AppFileSystem.read("languages/SysML_2_Std/style-light.agl")
         languageService.request.processorCreateRequest(
             ep,
             langId,
@@ -334,7 +334,7 @@ abstract class GuiAbstract : User {
                                     Text(text = "New File", modifier = Modifier.clickable(
                                         onClick = {
                                             scope.launch {
-                                                openProjectFolderPath?.let { newFile(it) }
+                                                openProjectFolderPath?.let { actionNewFile(it, editorState, treeState) }
                                             }
                                         }
                                     ))
@@ -349,12 +349,7 @@ abstract class GuiAbstract : User {
                             },
                             onClick = {
                                 scope.launch {
-                                    openProjectFolderPath = openProjectFolder()
-                                    openProjectFolderPath?.let {
-                                        val topLevelItems = listFolderContent(it)
-                                        treeState.setNewItems(topLevelItems)
-                                    }
-
+                                    openProjectFolderPath = actionOpenProject(treeState)
                                 }
                             }
                         )
@@ -363,12 +358,16 @@ abstract class GuiAbstract : User {
                             state = treeState,
                             onSelectItem = {
                                 scope.launch {
-                                    val path = it.data["path"] as String?
-                                    path?.let {
-                                        val fileContent = openFile(it)
-                                        editorState.setNewText(fileContent)
-                                        openFilePath = it
-                                        drawerState.close()
+                                    val handle = it.data["handle"] as FileSystemObjectHandle?
+                                    handle?.let {
+                                        when {
+                                            handle is FileHandle -> {
+                                                actionSelectFile(editorState, handle)
+                                                drawerState.close()
+                                            }
+
+                                            else -> Unit //TODO
+                                        }
                                     }
                                 }
                             }
@@ -430,11 +429,47 @@ abstract class GuiAbstract : User {
 
     val tokensByLine = mutableMapOf<Int, List<EditorLineToken>>()
 
-    abstract suspend fun openProjectFolder(): String
-    abstract suspend fun listFolderContent(filePath: String): List<TreeNode>
-    abstract suspend fun newFile(parentPath: String): String
-    abstract suspend fun openFile(filePath: String): String
-    abstract suspend fun saveFile(filePath: String, content: String)
+    suspend fun selectProjectDirectoryFromDialog(): DirectoryHandle? =
+        UserFileSystem.selectProjectDirectoryFromDialog()
+
+    suspend fun listFolderContent(directory: DirectoryHandle): List<FileSystemObjectHandle> =
+        UserFileSystem.listDirectoryContent(directory)
+
+    suspend fun refreshTreeView(fromDirectory: DirectoryHandle, treeViewState: TreeViewState) {
+        val dirEntries = listFolderContent(fromDirectory)
+        val topLevelItems = dirEntries.map { TreeNode(it.name, emptyList()) }
+        treeViewState.setNewItems(topLevelItems)
+    }
+
+    suspend fun actionOpenProject(treeViewState: TreeViewState): DirectoryHandle? {
+        val projectDir = selectProjectDirectoryFromDialog()
+        projectDir?.let {
+            refreshTreeView(it, treeViewState)
+        }
+        return projectDir
+    }
+
+    suspend fun actionSelectFile(editorState: EditorState, handle: FileHandle) {
+        val fileContent = readFileContent(handle)
+        fileContent?.let {
+            editorState.setNewText(fileContent)
+            openFilePath = handle
+        }
+    }
+
+    suspend fun actionNewFile(parentDirectory: DirectoryHandle, editorState: EditorState, treeViewState: TreeViewState): FileHandle? {
+        val file = UserFileSystem.selectFileFromDialog()
+        file?.let {
+            refreshTreeView(parentDirectory, treeViewState)
+            actionSelectFile(editorState, file)
+        }
+        return file
+    }
+
+    suspend fun readFileContent(file: FileHandle): String? = file.readContent()
+    suspend fun saveFileContent(file: FileHandle, content: String) {
+        file.writeContent(content)
+    }
 
     suspend fun onTextChange(text: String) {
         if (ready) {
@@ -442,7 +477,7 @@ abstract class GuiAbstract : User {
 //            println("textChange")
             this.languageService.request.sentenceProcessRequest(ep, langId, text, aglOptions)
             openFilePath?.let { path ->
-                saveFile(path, text)
+                saveFileContent(path, text)
             }
         }
     }

@@ -29,7 +29,7 @@ actual class Gui : GuiAbstract() {
         TODO("not implemented")
     }
 
-    override suspend fun openProjectFolder(): List<TreeNode> {
+    override suspend fun openProjectFolder(): String? {
         val fc = JFileChooser()
         fc.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY)
         fc.setAcceptAllFileFilterUsed(false)
@@ -38,9 +38,27 @@ actual class Gui : GuiAbstract() {
         } else {
             null
         }
-        return dir?.listFiles()?.map { TreeNode(it.name, emptyList(), mapOf(
+
+        return dir?.absolutePath
+    }
+
+    override suspend fun listFolderContent(filePath: String): List<TreeNode> {
+        val p = Paths.get(filePath)
+        return p.toFile().listFiles()?.map { TreeNode(it.name, emptyList(), mapOf(
             "path" to it.absolutePath
         )) } ?: emptyList()
+    }
+
+    override suspend fun newFile(parentPath: String): String? {
+        val fc = JFileChooser()
+        fc.setFileSelectionMode(JFileChooser.FILES_ONLY)
+        fc.setAcceptAllFileFilterUsed(false)
+        val file = if (fc.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
+            fc.selectedFile
+        } else {
+            null
+        }
+        return file?.absolutePath
     }
 
     override suspend fun openFile(filePath: String): String {

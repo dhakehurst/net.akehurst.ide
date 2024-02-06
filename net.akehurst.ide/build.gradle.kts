@@ -19,9 +19,9 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinJsCompile
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 
 plugins {
-    kotlin("multiplatform") version ("1.9.22") apply false
+    alias(libs.plugins.kotlin) apply false
+    alias(libs.plugins.dokka) apply false
     id("org.jetbrains.compose") version "1.6.0-beta01" apply false
-    id("org.jetbrains.dokka") version ("1.9.10") apply false
     id("com.github.gmazzo.buildconfig") version ("4.1.2") apply false
     id("nu.studer.credentials") version ("3.0")
 //    id("net.akehurst.kotlin.gradle.plugin.exportPublic") version ("1.9.21") apply false
@@ -101,11 +101,10 @@ subprojects {
             browser {
             }
         }
-       // macosArm64()
-       // macosX64()
-//        wasmJs {
-//
-//        }
+
+        // compose does not support native targets !
+
+//        wasmJs {}
 
         sourceSets {
             all {
