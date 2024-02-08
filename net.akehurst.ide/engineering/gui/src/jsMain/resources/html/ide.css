@@ -1,0 +1,66 @@
+@import "treeview.css";
+
+/* general */
+article {
+    display: flex;
+    flex-direction: column;
+}
+
+header {
+    display: flex;
+    flex-direction: row;
+}
+
+section {
+    display: grid;
+    grid: auto-flow minmax(0, 1fr) / minmax(0, 1fr);
+}
+
+button {
+    border: none;
+    background: transparent;
+}
+
+/* specific */
+
+div#ide {
+    display: grid;
+    grid: auto-flow minmax(0, 1fr) / minmax(0, 1fr);
+}
+
+div#ide > article {
+    display: grid;
+    grid-template-areas: "header header"
+                         "sidebar main";
+    grid-template-rows: auto 1fr;
+    grid-template-columns: auto 1fr;
+}
+
+div#ide > article > header {
+    grid-area: header;
+}
+
+#sidebar {
+    grid-area: sidebar;
+
+    display: none;
+    flex-direction: column;
+}
+
+#sidebar[open] {
+    display: flex;
+}
+
+#projectTreeSection {
+    padding-right: 10px;
+}
+
+
+div#ide > article > #main {
+    grid-area: main;
+}
+
+#main > div#editor {
+    display: grid;
+    grid: auto-flow minmax(0, 1fr) / minmax(0, 1fr);
+}

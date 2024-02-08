@@ -19,30 +19,37 @@ external var resourcesPath: String = definedExternally
 
 actual class Gui : GuiAbstract() {
 
+    override val logger = AglEditorLogger { logLevel: LogLevel, msg: String, t: Throwable? ->
+        when {
+            logLevel <= LogLevel.Information -> {
+                console.log("$logLevel: $msg")
+                t?.let { console.log("$logLevel: $t") }
+            }
+        }
+    }
+
     val workerScriptName = "${aglScriptBasePath}/js-worker.js"
     override val languageService = AglLanguageServiceByWorker(
         SharedWorker(workerScriptName, options = WorkerOptions(type = WorkerType.MODULE)),
-        AglEditorLogger { logLevel: LogLevel, msg: String, t: Throwable? ->
-            when {
-                logLevel <= LogLevel.Information -> {
-                    console.log("$logLevel: $msg")
-                    t?.let { console.log("$logLevel: $t") }
+        logger
+    )
+
+    override suspend fun start() = start_html()
+
+    suspend fun start_html() {
+        HtmlGui(this, logger,languageService).start()
+    }
+
+    @OptIn(ExperimentalComposeUiApi::class)
+    suspend fun start_compose() {
+        super.start()
+        onWasmReady {
+            CanvasBasedWindow("IDE") {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    content()
                 }
             }
         }
-    )
-
-
-     @OptIn(ExperimentalComposeUiApi::class)
-     override suspend fun start() {
-         super.start()
-         onWasmReady {
-             CanvasBasedWindow("IDE") {
-                 Column(modifier = Modifier.fillMaxSize()) {
-                     content()
-                 }
-             }
-         }
     }
 
     override fun lineTokens(lineStart: Int, tokens: List<List<Any>>) {

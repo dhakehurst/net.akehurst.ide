@@ -24,6 +24,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.key.KeyEvent
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -50,6 +53,7 @@ import net.akehurst.language.api.style.AglStyleModel
 import net.akehurst.language.api.style.AglStyleRule
 import net.akehurst.language.editor.api.*
 import net.akehurst.language.editor.common.AglStyleHandler
+import org.jetbrains.skiko.SkikoKeyboardEvent
 
 expect class Gui() : GuiAbstract {
 
@@ -98,6 +102,8 @@ abstract class GuiAbstract : User {
         val REGEX_LETTER = Regex("[a-zA-Z]")
     }
 
+    abstract val logger: AglEditorLogger
+
     val ep = EndPointIdentity("ide", "")
     val langId = "sysml"
     val aglOptions = Agl.options<Any, Any> { }
@@ -140,8 +146,13 @@ abstract class GuiAbstract : User {
     val autoCompleteResults = mutableListOf<AutocompleteSuggestion>()
 
     var ready = false
-    var openProjectFolderPath: DirectoryHandle? = null
+    var openProjectDirectory: DirectoryHandle? = null
     var openFilePath: FileHandle? = null
+
+    fun myOnKeyEvent(keyEvent: KeyEvent): Boolean {
+        (keyEvent.nativeKeyEvent as SkikoKeyboardEvent).platform?.myConsume()
+        return true
+    }
 
     override suspend fun start() {
         languageService.addResponseListener(
@@ -272,11 +283,18 @@ abstract class GuiAbstract : User {
 
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
+    fun content() = content3()
+
+    @OptIn(ExperimentalMaterial3Api::class)
+    @Composable
     fun content1() {
         var text by remember { mutableStateOf(TextFieldValue("")) }
         TextField(
             value = text,
             label = { Text(text = "Enter Your Name") },
+            modifier = Modifier
+                .onPreviewKeyEvent { myOnKeyEvent(it) }
+                .onKeyEvent { myOnKeyEvent(it) },
             onValueChange = {
                 text = it
             }
@@ -288,13 +306,15 @@ abstract class GuiAbstract : User {
     fun content2() {
         val state by remember { mutableStateOf(TextFieldState("")) }
         BasicTextField2(
-            state = state
+            state = state,
+            modifier = Modifier
+                .onPreviewKeyEvent { true }
         )
     }
 
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
-    fun content() {
+    fun content3() {
         //val longText = (0..30).joinToString(separator = "\n") { "aa" + "$it".repeat(5) + "bbb" }
         val numbers = (0..50).joinToString(separator = "\n") { "$it" }
         val initText = "" //"hello world\nhello bill!"
@@ -334,7 +354,12 @@ abstract class GuiAbstract : User {
                                     Text(text = "New File", modifier = Modifier.clickable(
                                         onClick = {
                                             scope.launch {
-                                                openProjectFolderPath?.let { actionNewFile(it, editorState, treeState) }
+                                                openProjectDirectory?.let { actionNewFile(it) {
+                                                    refreshTreeView(openProjectDirectory!!, treeState)
+                                                    actionSelectFile(it) {
+
+                                                    }
+                                                } }
                                             }
                                         }
                                     ))
@@ -349,7 +374,10 @@ abstract class GuiAbstract : User {
                             },
                             onClick = {
                                 scope.launch {
-                                    openProjectFolderPath = actionOpenProject(treeState)
+                                    actionOpenProject() {
+                                        refreshTreeView(it, treeState)
+                                        openProjectDirectory = it
+                                    }
                                 }
                             }
                         )
@@ -362,7 +390,10 @@ abstract class GuiAbstract : User {
                                     handle?.let {
                                         when {
                                             handle is FileHandle -> {
-                                                actionSelectFile(editorState, handle)
+                                                actionSelectFile(handle) {
+                                                    editorState.setNewText(it)
+                                                    openFilePath = handle
+                                                }
                                                 drawerState.close()
                                             }
 
@@ -441,28 +472,19 @@ abstract class GuiAbstract : User {
         treeViewState.setNewItems(topLevelItems)
     }
 
-    suspend fun actionOpenProject(treeViewState: TreeViewState): DirectoryHandle? {
+    suspend fun actionOpenProject(action: suspend (projectDir: DirectoryHandle) -> Unit) {
         val projectDir = selectProjectDirectoryFromDialog()
-        projectDir?.let {
-            refreshTreeView(it, treeViewState)
-        }
-        return projectDir
+        projectDir?.let { action.invoke(it) }
     }
 
-    suspend fun actionSelectFile(editorState: EditorState, handle: FileHandle) {
+    suspend fun actionSelectFile(handle: FileHandle, action: suspend (fileContent: String) -> Unit) {
         val fileContent = readFileContent(handle)
-        fileContent?.let {
-            editorState.setNewText(fileContent)
-            openFilePath = handle
-        }
+        fileContent?.let {action.invoke(it) }
     }
 
-    suspend fun actionNewFile(parentDirectory: DirectoryHandle, editorState: EditorState, treeViewState: TreeViewState): FileHandle? {
-        val file = UserFileSystem.selectFileFromDialog()
-        file?.let {
-            refreshTreeView(parentDirectory, treeViewState)
-            actionSelectFile(editorState, file)
-        }
+    suspend fun actionNewFile(parentDirectory: DirectoryHandle, action:suspend (newFileHandle:FileHandle)->Unit): FileHandle? {
+        val file = UserFileSystem.selectNewFileFromDialog()
+        file?.let {action.invoke(it) }
         return file
     }
 

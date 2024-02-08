@@ -5,6 +5,7 @@ import kotlinx.browser.window
 import kotlinx.coroutines.await
 import net.akehurst.ide.gui.fs.FileSystemDirectoryHandle
 import net.akehurst.ide.gui.fs.FileSystemFileHandle
+import net.akehurst.language.editor.browser.codemirror.set
 import net.akehurst.language.editor.common.objectJS
 import kotlin.js.Promise
 
@@ -45,7 +46,7 @@ actual object UserFileSystem {
         return DirectoryHandleJS(this, handle)
     }
 
-    actual suspend fun selectFileFromDialog(): FileHandle? {
+    actual suspend fun selectExistingFileFromDialog(): FileHandle? {
         val w: dynamic = window
         val p: Promise<dynamic> = w.showOpenFilePicker(
             objectJS {
@@ -56,13 +57,30 @@ actual object UserFileSystem {
         return FileHandleJS(this, handle)
     }
 
+    actual suspend fun selectNewFileFromDialog(): FileHandle? {
+        val w: dynamic = window
+        val p: Promise<dynamic> = w.showSaveFilePicker(
+            objectJS {
+                types = arrayOf(
+                    objectJS {
+                        description = "SysML v2 file"
+                        accept = objectJS {}.set("text/plain", arrayOf(".sysml"))
+                    }
+                )
+            }
+        )
+        val handle: FileSystemFileHandle = p.await()
+        return FileHandleJS(this, handle)
+    }
+
+
     actual suspend fun listDirectoryContent(dir: DirectoryHandle): List<FileSystemObjectHandle> =
         when (dir) {
             is DirectoryHandleJS -> {
                 val list = mutableListOf<FileSystemObjectHandle>()
                 for (v in dir.handle.values()) {
                     val o = when (v.kind) {
-                        "file" -> FileHandleJS(this, dir.handle.getFileHandle(v.name))
+                        "file" -> FileHandleJS(this, dir.handle.getFileHandle(v.name).await())
                         "directory" -> DirectoryHandleJS(this, dir.handle.getDirectoryHandle(v.name))
                         else -> error("Should not happen")
                     }
@@ -97,7 +115,7 @@ TODO()
     actual suspend fun readFileContent(file: FileHandle): String? =
         when (file) {
             is FileHandleJS -> {
-                file.handle.file.await().text().await()
+                file.handle.getFile().await().text().await()
             }
 
             else -> error("FileHandle is not a FileHandleJS: ${file::class.simpleName}")

@@ -18,7 +18,7 @@ external interface FileSystemDirectoryHandle : FileSystemHandle {
     fun values(): AsyncIterable<Value>
 
     fun getDirectoryHandle(name:String):FileSystemDirectoryHandle
-    fun getFileHandle(name:String):FileSystemFileHandle
+    fun getFileHandle(name:String):Promise<FileSystemFileHandle>
 }
 external interface Value {
     val kind:String
@@ -26,7 +26,7 @@ external interface Value {
 }
 
 external interface FileSystemFileHandle : FileSystemHandle {
-    val file: Promise<File>
+    fun getFile(): Promise<File>
     fun createWritable():Promise<FileSystemWritableFileStream>
 }
 

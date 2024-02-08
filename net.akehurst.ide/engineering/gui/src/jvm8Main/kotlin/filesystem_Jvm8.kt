@@ -46,7 +46,7 @@ actual object UserFileSystem {
         }
     }
 
-    actual suspend fun selectFileFromDialog(): FileHandle? {
+    actual suspend fun selectExistingFileFromDialog(): FileHandle? {
         val fc = JFileChooser()
         fc.setFileSelectionMode(JFileChooser.FILES_ONLY)
         fc.setAcceptAllFileFilterUsed(false)
@@ -55,6 +55,10 @@ actual object UserFileSystem {
         } else {
             null
         }
+    }
+
+    actual suspend fun selectNewFileFromDialog(): FileHandle? {
+        TODO()
     }
 
     actual suspend fun listDirectoryContent(dir: DirectoryHandle): List<FileSystemObjectHandle> {

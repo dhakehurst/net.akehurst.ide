@@ -8,6 +8,8 @@ dependencies {
     commonMainImplementation(project(":common"))
     commonMainImplementation(compose.runtime)
     jsMainImplementation(npm("@js-joda/core","5.6.1"))
+    jsMainImplementation(npm("css-loader", "6.8.1"))
+    jsMainImplementation(npm("style-loader", "3.3.3"))
 }
 
 kotlin {
@@ -21,11 +23,16 @@ kotlin {
         }
     }
     sourceSets {
+        // add the all files to resources of the web-client
         val jsMain by getting {
-            // add the example files to resources of the web-client
-            val kotlinExtension = project(":common-data").extensions.getByName("kotlin") as KotlinMultiplatformExtension
-            val res = kotlinExtension.sourceSets.getByName("commonMain").resources
-            resources.srcDir(res)
+            listOf(":gui", ":common-data").forEach {projName ->
+                val proj = project(projName)
+                val kotlinExtension = proj.extensions.getByName("kotlin") as KotlinMultiplatformExtension
+                listOf("commonMain", "jsMain").forEach {
+                    val res = kotlinExtension.sourceSets.getByName(it).resources
+                    resources.srcDir(res)
+                }
+            }
         }
     }
 }

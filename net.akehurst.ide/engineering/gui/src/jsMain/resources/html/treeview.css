@@ -1,0 +1,136 @@
+/* ----------  treeview ---------- */
+
+treeview > .treeview-loading {
+    border: 16px solid #f3f3f3; /* Light grey */
+    border-top: 16px solid #3498db; /* Blue */
+    border-radius: 50%;
+    width: 120px;
+    height: 120px;
+    animation: spin 2s linear infinite;
+}
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+treeview {
+    --spacing : 0.7rem;
+    --radius  : 7px;
+    --text-height: 1.4em;
+
+    font-size: 1em;
+    line-height: var(--text-height);
+    overflow: auto;
+}
+treeview treeview-children {
+    padding: 0;
+    display: none; /* hide children when closed/default */
+    margin-left  : 0;
+}
+
+treeview treeview-leaf {
+    display      : block;
+    position     : relative;
+    padding-left : calc(2 * var(--spacing) - var(--radius) - 2px);
+}
+
+treeview treeview-leaf span {
+    display      : block;
+    position     : relative;
+    padding-left : calc(2 * var(--spacing) - var(--radius) - 2px);
+}
+
+treeview treeview-branch {
+    cursor: pointer;
+    user-select: none;
+    display: block;
+    position     : relative;
+    padding-left : calc(2 * var(--spacing) - var(--radius) - 2px);
+}
+
+treeview treeview-branch span {
+    display      : block;
+    position     : relative;
+    padding-left : calc(2 * var(--radius));
+}
+
+treeview treeview-branch span:hover {
+    background-color: azure;
+}
+
+/* vertical lines */
+treeview treeview-children > *  {
+    padding-left : calc(2 * var(--spacing) - var(--radius) - 2px);
+    border-left : 2px solid #ddd;
+    position: relative;
+}
+
+treeview treeview-children  > *:last-child {
+    border-color : transparent;
+}
+
+/* horizontal lines */
+treeview treeview-children treeview-branch:before {
+    content      : '';
+    display      : block;
+    position     : absolute;
+    top          : calc(var(--text-height)/-2);
+    left         : -2px;
+    width        : calc(var(--spacing));
+    height       : calc(var(--text-height));
+    border       : solid #ddd;
+    border-width : 0 0 2px 2px;
+}
+
+treeview treeview-children treeview-leaf:before {
+    content      : '';
+    display      : block;
+    position     : absolute;
+    top          : calc(var(--text-height)/-2);
+    left         : -2px;
+    width        : calc(var(--spacing));
+    height       : calc(var(--text-height));
+    border       : solid #ddd;
+    border-width : 0 0 2px 2px;
+}
+
+/* Markers */
+treeview treeview-leaf > span:before {
+    content: " ";
+    text-align: center;
+    line-height : calc(2 * var(--radius) - 2px);
+    z-index: 1;
+
+    display       : block;
+    position      : absolute;
+    top           : calc( (var(--text-height) - var(--radius)*2)/2 );
+    left          : calc(-1 * var(--radius) );
+    width         : calc(2 * var(--radius));
+    height        : calc(2 * var(--radius));
+    border-radius : 50%;
+    background    : #ddd;
+}
+
+treeview treeview-branch > span:before {
+    content: "+";
+    text-align: center;
+    line-height : calc(2*var(--radius) - 2px);
+    z-index: 1;
+
+    display       : block;
+    position      : absolute;
+    top           : calc( (var(--text-height) - var(--radius)*2)/2 );
+    left          : calc(-1 * var(--radius) );
+    width         : calc(2 * var(--radius));
+    height        : calc(2 * var(--radius));
+    border-radius : 50%;
+    background    : #ddd;
+
+}
+
+treeview treeview-branch[open] > span:before {
+    content: "-";
+}
+
+treeview treeview-branch[open] > treeview-children {
+    display: block; /* show children when open */
+}

@@ -11,7 +11,7 @@ nak-serialisation = "1.9.22"
 nak-json = "1.9.22"
 nak-kotlinx = "1.9.22"
 nak-html-builder = "1.9.22"
-nak-codemirror-api = "6.0.1"
+nak-codemirror = "6.0.1"
 
 korge = "5.3.1"
 
@@ -22,6 +22,10 @@ kotlinx-coroutines = "1.8.0-RC2"
 nal-agl-processor = { module = "net.akehurst.language:agl-processor", version.ref = "nal-agl-processor" }
 nal-agl-editor-compose = { module = "net.akehurst.language.editor:agl-editor-compose", version.ref = "nal-agl-editor" }
 nal-agl-language-service = { module = "net.akehurst.language.editor:agl-language-service", version.ref = "nal-agl-editor" }
+nal-agl-editor-codemirror = { module = "net.akehurst.language.editor:agl-editor-browser-codemirror", version.ref = "nal-agl-editor" }
+
+nak-codemirror  = { module = "net.akehurst.kotlin:codemirror-api-realisation", version.ref = "nak-codemirror" }
+
 
 nak-compose-code-editor = { module = "net.akehurst.kotlin.compose:code-editor", version.ref = "nak-compose-code-editor" }
 
@@ -30,7 +34,8 @@ nak-json = { module = "net.akehurst.kotlin.json:json", version.ref = "nak-json" 
 nak-kotlinx-collections = { module = "net.akehurst.kotlinx:kotlinx-collections", version.ref = "nak-kotlinx" }
 nak-kotlinx-reflect = { module = "net.akehurst.kotlinx:kotlinx-reflect", version.ref = "nak-kotlinx" }
 nak-html-builder = { module = "net.akehurst.kotlin.html5:html-builder", version.ref = "nak-html-builder" }
-nak-codemirror-api = { module = "net.akehurst.kotlin:codemirror-api", version.ref = "nak-codemirror-api" }
+
+
 
 korge-core = { module = "com.soywiz.korge:korge-core", version.ref = "korge" }
 

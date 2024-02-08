@@ -16,7 +16,8 @@ interface DirectoryHandle : FileSystemObjectHandle {
 expect object UserFileSystem {
 
     suspend fun selectProjectDirectoryFromDialog(): DirectoryHandle?
-    suspend fun selectFileFromDialog(): FileHandle?
+    suspend fun selectExistingFileFromDialog(): FileHandle?
+    suspend fun selectNewFileFromDialog(): FileHandle?
 
     suspend fun listDirectoryContent(dir: DirectoryHandle): List<FileSystemObjectHandle>
 

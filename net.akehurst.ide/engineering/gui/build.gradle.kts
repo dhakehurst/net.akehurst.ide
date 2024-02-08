@@ -26,6 +26,11 @@ dependencies {
     jsMainImplementation(libs.nal.agl.language.service)
     jsMainImplementation("org.jetbrains.kotlin-wrappers:kotlin-js:1.0.0-pre.690")
 
+    //compose for js editor is not working so have to use html and codemirror instead
+    jsMainImplementation(libs.nal.agl.editor.codemirror)
+    jsMainImplementation(libs.nak.codemirror)
+    jsMainImplementation(libs.nak.html.builder)
+    jsMainImplementation(npm(name="@fortawesome/fontawesome-free", version="6.5.1"))
 }
 
 kotlin {
