@@ -1,5 +1,6 @@
 package net.akehurst.ide.gui
 
+import codemirror.extensions.autocomplete.autocompletion
 import codemirror.extensions.commands.history
 import codemirror.extensions.view.highlightActiveLine
 import codemirror.extensions.view.highlightActiveLineGutter
@@ -11,11 +12,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import net.akehurst.kotlin.html5.create
 import net.akehurst.language.agl.processor.Agl
-import net.akehurst.language.editor.api.AglEditor
-import net.akehurst.language.editor.api.AglEditorLogger
-import net.akehurst.language.editor.api.LanguageService
-import net.akehurst.language.editor.api.LogFunction
+import net.akehurst.language.agl.semanticAnalyser.ContextSimple
+import net.akehurst.language.editor.api.*
 import net.akehurst.language.editor.browser.codemirror.attachToCodeMirror
+import net.akehurst.language.editor.common.objectJS
 import net.akehurst.language.editor.common.objectJSTyped
 import net.akehurst.language.editor.technology.gui.widgets.TreeView
 import net.akehurst.language.editor.technology.gui.widgets.TreeViewFunctions
@@ -40,7 +40,6 @@ class HtmlGui(
     lateinit var scope: CoroutineScope
     lateinit var sidebar: HTMLElement
     lateinit var projectTree: TreeView<FileSystemObjectHandle>
-    lateinit var aglEditor: AglEditor<Any, Any>
     var doSaveTimeout:Int?=null
 
     suspend fun start() {
@@ -82,8 +81,9 @@ class HtmlGui(
                                     scope.launch {
                                         gui.actionNewFile(it) {newFile ->
                                             gui.actionSelectFile(newFile) {
-                                                aglEditor.text = it
+                                                gui.aglEditor.text = it
                                                 gui.openFilePath = newFile
+                                                projectTree.refresh()
                                             }
                                         }
                                     }
@@ -105,7 +105,7 @@ class HtmlGui(
                             onClick = {file ->
                                 when (file) {
                                     is FileHandle -> gui.actionSelectFile(file) {
-                                        aglEditor.text = it
+                                        gui.aglEditor.text = it
                                         gui.openFilePath = file
                                     }
 
@@ -123,7 +123,7 @@ class HtmlGui(
         }
         val editorElement = document.querySelector("div#$EDITOR_DIV_ID") as HTMLDivElement
         val editorId = editorElement.id
-        val languageId = "SysMLv2"
+        val languageId = gui.langId
         val editorOptions = objectJSTyped<EditorViewConfig> {
             doc = ""
             extensions = arrayOf(
@@ -131,13 +131,16 @@ class HtmlGui(
                 highlightActiveLine(),
                 highlightActiveLineGutter(),
                 history(),
+                autocompletion(objectJS {
+                    activateOnTyping = false
+                })
             )
             parent = editorElement
         }
         val ed = codemirror.view.EditorView(editorOptions)
 
         val logFunction: LogFunction = { lvl, msg, t -> logger.log(lvl, msg, t) }
-        aglEditor = Agl.attachToCodeMirror<Any, Any>(
+        gui.aglEditor = Agl.attachToCodeMirror<Any, Any>(
             languageService = languageService,
             containerElement = editorElement,
             languageId = languageId,
@@ -146,11 +149,21 @@ class HtmlGui(
             cmEditor = ed,
             codemirror = codemirror.CodeMirror
         )
-        aglEditor.onTextChange {
+        gui.aglEditor.editorOptions = EditorOptionsDefault(
+            parse = true,
+            parseLineTokens = true,
+            lineTokensChunkSize = 1000,
+            parseTree = false,
+            syntaxAnalysis = false, //TODO
+            syntaxAnalysisAsm = false,  //TODO
+            semanticAnalysis = false,
+            semanticAnalysisAsm = false
+        )
+        gui.aglEditor.onTextChange {
             // if save not scheduled, schedule save in 5 seconds
             if (doSaveTimeout==null) {
                 doSaveTimeout = window.setTimeout({
-                    scope.launch { gui.openFilePath?.writeContent(aglEditor.text) }
+                    scope.launch { gui.openFilePath?.writeContent(gui.aglEditor.text) }
                     doSaveTimeout = null
                 }, 5000)
             }

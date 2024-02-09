@@ -28,6 +28,8 @@ actual class Gui : GuiAbstract() {
         }
     }
 
+    override val appFileSystem = AppFileSystem(resourcesPath)
+
     val workerScriptName = "${aglScriptBasePath}/js-worker.js"
     override val languageService = AglLanguageServiceByWorker(
         SharedWorker(workerScriptName, options = WorkerOptions(type = WorkerType.MODULE)),
@@ -37,7 +39,8 @@ actual class Gui : GuiAbstract() {
     override suspend fun start() = start_html()
 
     suspend fun start_html() {
-        HtmlGui(this, logger,languageService).start()
+        HtmlGui(this, logger, languageService).start()
+        super.start()
     }
 
     @OptIn(ExperimentalComposeUiApi::class)

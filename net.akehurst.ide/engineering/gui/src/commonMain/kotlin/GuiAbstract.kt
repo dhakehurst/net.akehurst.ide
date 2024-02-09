@@ -45,6 +45,7 @@ import net.akehurst.language.agl.regex.RegexEngineAgl
 import net.akehurst.language.agl.regex.RegexEnginePlatform
 import net.akehurst.language.agl.scanner.Matchable
 import net.akehurst.language.agl.scanner.ScannerAbstract
+import net.akehurst.language.agl.semanticAnalyser.ContextSimple
 import net.akehurst.language.agl.sppt.CompleteTreeDataNode
 import net.akehurst.language.api.processor.*
 import net.akehurst.language.api.scanner.Scanner
@@ -102,6 +103,7 @@ abstract class GuiAbstract : User {
         val REGEX_LETTER = Regex("[a-zA-Z]")
     }
 
+    abstract val appFileSystem: AppFileSystem
     abstract val logger: AglEditorLogger
 
     val ep = EndPointIdentity("ide", "")
@@ -141,6 +143,7 @@ abstract class GuiAbstract : User {
             override fun findOrTryCreateLeaf(sentence: Sentence, position: Int, terminalRule: Rule): CompleteTreeDataNode = error("Not used")
         }
     }
+    lateinit var aglEditor:AglEditor<Any,Any>
 
     abstract val languageService: LanguageService
     val autoCompleteResults = mutableListOf<AutocompleteSuggestion>()
@@ -155,130 +158,136 @@ abstract class GuiAbstract : User {
     }
 
     override suspend fun start() {
-        languageService.addResponseListener(
-            ep, object : LanguageServiceResponse {
-                override fun processorCreateResponse(endPointIdentity: EndPointIdentity, status: MessageStatus, message: String, issues: List<LanguageIssue>, scannerMatchables: List<Matchable>) {
-                    scannerMatchables.forEach {
-                        it.using(RegexEnginePlatform)
-                    }
-                    this@GuiAbstract.scannerMatchables = scannerMatchables
-                }
+//        languageService.addResponseListener(
+//            ep, object : LanguageServiceResponse {
+//                override fun processorCreateResponse(endPointIdentity: EndPointIdentity, status: MessageStatus, message: String, issues: List<LanguageIssue>, scannerMatchables: List<Matchable>) {
+//                    scannerMatchables.forEach {
+//                        it.using(RegexEnginePlatform)
+//                    }
+//                    this@GuiAbstract.scannerMatchables = scannerMatchables
+//                }
+//
+//                override fun processorDeleteResponse(endPointIdentity: EndPointIdentity, status: MessageStatus, message: String) {
+//                }
+//
+//                override fun processorSetStyleResponse(endPointIdentity: EndPointIdentity, status: MessageStatus, message: String, issues: List<LanguageIssue>, styleModel: AglStyleModel?) {
+//                    when (status) {
+//                        MessageStatus.START -> Unit
+//                        MessageStatus.SUCCESS -> {
+//                            this@GuiAbstract.styleHandler.updateStyleModel(styleModel ?: AglStyleModelDefault(emptyList()))
+//                            ready = true
+//                        }
+//
+//                        MessageStatus.FAILURE -> {
+//                            issues.forEach {
+//                                println(it) //TODO
+//                            }
+//                        }
+//                    }
+//                }
+//
+//                override fun sentenceCodeCompleteResponse(
+//                    endPointIdentity: EndPointIdentity,
+//                    status: MessageStatus,
+//                    message: String,
+//                    issues: List<LanguageIssue>,
+//                    completionItems: List<CompletionItem>
+//                ) {
+//                    val auto = autoCompleteResults.removeFirstOrNull()
+//
+//                    val sorted = completionItems.sortedWith { a, b ->
+//                        val av = a.orderValue
+//                        val bv = b.orderValue
+//                        when {
+//                            av > bv -> 1
+//                            av < bv -> -1
+//                            else -> {
+//                                a.text.compareTo(b.text)
+//                            }
+//                        }
+//                    }
+//                    if (null != auto) {
+//                        when (status) {
+//                            MessageStatus.SUCCESS -> {
+//                                val items = sorted.map {
+//                                    object : AutocompleteItem {
+//                                        //val kind = it.kind
+//                                        override val name: String?
+//                                            get() = when (it.kind) {
+//                                                CompletionItemKind.LITERAL -> null
+//                                                else -> it.name
+//                                            }
+//                                        override val text: String get() = it.text
+//                                        override fun equalTo(other: AutocompleteItem): Boolean = when {
+//                                            name != other.name -> false
+//                                            text != other.text -> false
+//                                            else -> true
+//                                        }
+//                                    }
+//                                }
+//                                auto.provide(items)
+//                            }
+//
+//                            else -> auto.provide(emptyList())
+//                        }
+//                    }
+//                }
+//
+//                override fun sentenceLineTokensResponse(endPointIdentity: EndPointIdentity, status: MessageStatus, message: String, startLine: Int, lineTokens: List<List<AglToken>>) {
+//                    when (status) {
+//                        MessageStatus.SUCCESS -> {
+//                            lineTokens.forEachIndexed { index, tokens ->
+//                                // could get empty tokens for a line from a partial parse
+//                                val lineStart = tokens.firstOrNull()?.position ?: 0 // if not tokens then no conversion so line start pos does not matter
+//                                this@GuiAbstract.tokensByLine[startLine + index] = convertTokens(tokens, lineStart)
+//                            }
+//                        }
+//
+//                        else -> Unit //TODO
+//                    }
+//                }
+//
+//                override fun sentenceParseResponse(endPointIdentity: EndPointIdentity, status: MessageStatus, message: String, issues: List<LanguageIssue>, tree: Any?) {
+//                }
+//
+//                override fun sentenceSemanticAnalysisResponse(endPointIdentity: EndPointIdentity, status: MessageStatus, message: String, issues: List<LanguageIssue>, asm: Any?) {
+//                }
+//
+//                override fun sentenceSyntaxAnalysisResponse(endPointIdentity: EndPointIdentity, status: MessageStatus, message: String, issues: List<LanguageIssue>, asm: Any?) {
+//                }
+//
+//            }
+//        )
 
-                override fun processorDeleteResponse(endPointIdentity: EndPointIdentity, status: MessageStatus, message: String) {
-                }
+        val grmrStr = appFileSystem.read("languages/SysML_2_Std/grammar.agl")
+        val styleStr = appFileSystem.read("languages/SysML_2_Std/style-light.agl")
+        this.updateEditorLanguage(grmrStr,"",styleStr)
+//        languageService.request.processorCreateRequest(
+//            ep,
+//            langId,
+//            grmrStr,
+//            null,
+//            EditorOptionsDefault(
+//                parse = true,
+//                parseLineTokens = true,
+//                lineTokensChunkSize = 1000,
+//                parseTree = false,
+//                syntaxAnalysis = false, //TODO
+//                syntaxAnalysisAsm = false,  //TODO
+//                semanticAnalysis = false,
+//                semanticAnalysisAsm = false
+//            )
+//        )
+//        languageService.request.processorSetStyleRequest(
+//            ep,
+//            langId,
+//            styleStr
+//        )
+    }
 
-                override fun processorSetStyleResponse(endPointIdentity: EndPointIdentity, status: MessageStatus, message: String, issues: List<LanguageIssue>, styleModel: AglStyleModel?) {
-                    when (status) {
-                        MessageStatus.START -> Unit
-                        MessageStatus.SUCCESS -> {
-                            this@GuiAbstract.styleHandler.updateStyleModel(styleModel ?: AglStyleModelDefault(emptyList()))
-                            ready = true
-                        }
-
-                        MessageStatus.FAILURE -> {
-                            issues.forEach {
-                                println(it) //TODO
-                            }
-                        }
-                    }
-                }
-
-                override fun sentenceCodeCompleteResponse(
-                    endPointIdentity: EndPointIdentity,
-                    status: MessageStatus,
-                    message: String,
-                    issues: List<LanguageIssue>,
-                    completionItems: List<CompletionItem>
-                ) {
-                    val auto = autoCompleteResults.removeFirstOrNull()
-
-                    val sorted = completionItems.sortedWith { a, b ->
-                        val av = a.orderValue
-                        val bv = b.orderValue
-                        when {
-                            av > bv -> 1
-                            av < bv -> -1
-                            else -> {
-                                a.text.compareTo(b.text)
-                            }
-                        }
-                    }
-                    if (null != auto) {
-                        when (status) {
-                            MessageStatus.SUCCESS -> {
-                                val items = sorted.map {
-                                    object : AutocompleteItem {
-                                        //val kind = it.kind
-                                        override val name: String?
-                                            get() = when (it.kind) {
-                                                CompletionItemKind.LITERAL -> null
-                                                else -> it.name
-                                            }
-                                        override val text: String get() = it.text
-                                        override fun equalTo(other: AutocompleteItem): Boolean = when {
-                                            name != other.name -> false
-                                            text != other.text -> false
-                                            else -> true
-                                        }
-                                    }
-                                }
-                                auto.provide(items)
-                            }
-
-                            else -> auto.provide(emptyList())
-                        }
-                    }
-                }
-
-                override fun sentenceLineTokensResponse(endPointIdentity: EndPointIdentity, status: MessageStatus, message: String, startLine: Int, lineTokens: List<List<AglToken>>) {
-                    when (status) {
-                        MessageStatus.SUCCESS -> {
-                            lineTokens.forEachIndexed { index, tokens ->
-                                // could get empty tokens for a line from a partial parse
-                                val lineStart = tokens.firstOrNull()?.position ?: 0 // if not tokens then no conversion so line start pos does not matter
-                                this@GuiAbstract.tokensByLine[startLine + index] = convertTokens(tokens, lineStart)
-                            }
-                        }
-
-                        else -> Unit //TODO
-                    }
-                }
-
-                override fun sentenceParseResponse(endPointIdentity: EndPointIdentity, status: MessageStatus, message: String, issues: List<LanguageIssue>, tree: Any?) {
-                }
-
-                override fun sentenceSemanticAnalysisResponse(endPointIdentity: EndPointIdentity, status: MessageStatus, message: String, issues: List<LanguageIssue>, asm: Any?) {
-                }
-
-                override fun sentenceSyntaxAnalysisResponse(endPointIdentity: EndPointIdentity, status: MessageStatus, message: String, issues: List<LanguageIssue>, asm: Any?) {
-                }
-
-            }
-        )
-
-        val grmrStr = AppFileSystem.read("languages/SysML_2_Std/grammar.agl")
-        val styleStr = AppFileSystem.read("languages/SysML_2_Std/style-light.agl")
-        languageService.request.processorCreateRequest(
-            ep,
-            langId,
-            grmrStr,
-            null,
-            EditorOptionsDefault(
-                parse = true,
-                parseLineTokens = true,
-                lineTokensChunkSize = 1000,
-                parseTree = false,
-                syntaxAnalysis = false, //TODO
-                syntaxAnalysisAsm = false,  //TODO
-                semanticAnalysis = false,
-                semanticAnalysisAsm = false
-            )
-        )
-        languageService.request.processorSetStyleRequest(
-            ep,
-            langId,
-            styleStr
-        )
+    fun updateEditorLanguage(grammarStr: String?, crossReferenceModelStr: String?, styleStr: String?) {
+        aglEditor.processOptions.semanticAnalysis.context = ContextSimple()
+        aglEditor.languageDefinition.update(grammarStr, crossReferenceModelStr, styleStr)
     }
 
     @OptIn(ExperimentalMaterial3Api::class)

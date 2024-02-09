@@ -5,7 +5,7 @@ import kotlinx.browser.window
 import kotlinx.coroutines.await
 import net.akehurst.ide.gui.fs.FileSystemDirectoryHandle
 import net.akehurst.ide.gui.fs.FileSystemFileHandle
-import net.akehurst.language.editor.browser.codemirror.set
+
 import net.akehurst.language.editor.common.objectJS
 import kotlin.js.Promise
 
@@ -61,12 +61,12 @@ actual object UserFileSystem {
         val w: dynamic = window
         val p: Promise<dynamic> = w.showSaveFilePicker(
             objectJS {
-                types = arrayOf(
-                    objectJS {
-                        description = "SysML v2 file"
-                        accept = objectJS {}.set("text/plain", arrayOf(".sysml"))
-                    }
-                )
+//                types = arrayOf(
+//                    objectJS {
+//                        description = "SysML v2 file"
+//                        accept = objectJS {}.set("text/plain", arrayOf(".sysml"))
+//                    }
+//                )
             }
         )
         val handle: FileSystemFileHandle = p.await()

@@ -1,12 +1,17 @@
 package net.akehurst.ide.gui
 
+import korlibs.io.file.std.localVfs
 import korlibs.io.file.std.resourcesVfs
 
 
-object AppFileSystem {
+class AppFileSystem(
+    resourcesPathRoot: String
+) {
+
+    val resources = localVfs(resourcesPathRoot).jail()
 
     suspend fun read(resourcePath:String): String {
-        return resourcesVfs[resourcePath].readString()
+        return resources[resourcePath].readString()
     }
 
 }
