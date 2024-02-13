@@ -143,7 +143,7 @@ abstract class GuiAbstract : User {
             override fun findOrTryCreateLeaf(sentence: Sentence, position: Int, terminalRule: Rule): CompleteTreeDataNode = error("Not used")
         }
     }
-    lateinit var aglEditor:AglEditor<Any,Any>
+    lateinit var aglEditor: AglEditor<Any, Any>
 
     abstract val languageService: LanguageService
     val autoCompleteResults = mutableListOf<AutocompleteSuggestion>()
@@ -259,9 +259,14 @@ abstract class GuiAbstract : User {
 //            }
 //        )
 
-        val grmrStr = appFileSystem.read("languages/SysML_2_Std/grammar.agl")
+        val grammarStr = appFileSystem.read("languages/SysML_2_Std/grammar.agl")
+        val crossReferenceModelStr = appFileSystem.read("languages/SysML_2_Std/references.agl")
         val styleStr = appFileSystem.read("languages/SysML_2_Std/style-light.agl")
-        this.updateEditorLanguage(grmrStr,"",styleStr)
+        this.updateEditorLanguage(
+            grammarStr = grammarStr,
+            crossReferenceModelStr = crossReferenceModelStr,
+            styleStr = styleStr
+        )
 //        languageService.request.processorCreateRequest(
 //            ep,
 //            langId,
@@ -363,12 +368,14 @@ abstract class GuiAbstract : User {
                                     Text(text = "New File", modifier = Modifier.clickable(
                                         onClick = {
                                             scope.launch {
-                                                openProjectDirectory?.let { actionNewFile(it) {
-                                                    refreshTreeView(openProjectDirectory!!, treeState)
-                                                    actionSelectFile(it) {
+                                                openProjectDirectory?.let {
+                                                    actionNewFile(it) {
+                                                        refreshTreeView(openProjectDirectory!!, treeState)
+                                                        actionSelectFile(it) {
 
+                                                        }
                                                     }
-                                                } }
+                                                }
                                             }
                                         }
                                     ))
@@ -488,12 +495,12 @@ abstract class GuiAbstract : User {
 
     suspend fun actionSelectFile(handle: FileHandle, action: suspend (fileContent: String) -> Unit) {
         val fileContent = readFileContent(handle)
-        fileContent?.let {action.invoke(it) }
+        fileContent?.let { action.invoke(it) }
     }
 
-    suspend fun actionNewFile(parentDirectory: DirectoryHandle, action:suspend (newFileHandle:FileHandle)->Unit): FileHandle? {
+    suspend fun actionNewFile(parentDirectory: DirectoryHandle, action: suspend (newFileHandle: FileHandle) -> Unit): FileHandle? {
         val file = UserFileSystem.selectNewFileFromDialog()
-        file?.let {action.invoke(it) }
+        file?.let { action.invoke(it) }
         return file
     }
 

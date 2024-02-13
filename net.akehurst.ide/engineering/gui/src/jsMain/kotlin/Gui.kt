@@ -21,7 +21,7 @@ actual class Gui : GuiAbstract() {
 
     override val logger = AglEditorLogger { logLevel: LogLevel, msg: String, t: Throwable? ->
         when {
-            logLevel <= LogLevel.Information -> {
+            logLevel <= LogLevel.All -> { //LogLevel.Information -> {
                 console.log("$logLevel: $msg")
                 t?.let { console.log("$logLevel: $t") }
             }

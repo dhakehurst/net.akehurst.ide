@@ -79,6 +79,8 @@ class HtmlGui(
                             on.click {
                                 gui.openProjectDirectory?.let {
                                     scope.launch {
+                                        // save existing file before opening new one, TODO: check for 'dirty'
+                                        gui.openFilePath?.writeContent(gui.aglEditor.text)
                                         gui.actionNewFile(it) {newFile ->
                                             gui.actionSelectFile(newFile) {
                                                 gui.aglEditor.text = it
@@ -104,11 +106,14 @@ class HtmlGui(
                             },
                             onClick = {file ->
                                 when (file) {
-                                    is FileHandle -> gui.actionSelectFile(file) {
-                                        gui.aglEditor.text = it
-                                        gui.openFilePath = file
+                                    is FileHandle -> {
+                                        // save existing file before opening new one, TODO: check for 'dirty'
+                                        gui.openFilePath?.writeContent(gui.aglEditor.text)
+                                        gui.actionSelectFile(file) {
+                                            gui.aglEditor.text = it
+                                            gui.openFilePath = file
+                                        }
                                     }
-
                                     else -> Unit
                                 }
                             }
@@ -154,9 +159,9 @@ class HtmlGui(
             parseLineTokens = true,
             lineTokensChunkSize = 1000,
             parseTree = false,
-            syntaxAnalysis = false, //TODO
+            syntaxAnalysis = true, //TODO
             syntaxAnalysisAsm = false,  //TODO
-            semanticAnalysis = false,
+            semanticAnalysis = true,
             semanticAnalysisAsm = false
         )
         gui.aglEditor.onTextChange {

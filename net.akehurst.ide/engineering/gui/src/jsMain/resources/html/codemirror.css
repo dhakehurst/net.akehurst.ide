@@ -1,3 +1,7 @@
 .cm-editor .cm-content {
     background-color: white;
 }
+
+.cm-completionDetail {
+    color: grey;
+}
