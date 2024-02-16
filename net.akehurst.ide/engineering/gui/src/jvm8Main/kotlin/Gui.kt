@@ -17,6 +17,9 @@ actual class Gui : GuiAbstract() {
         }
     }
 
+    override val appFileSystem: AppFileSystem
+        get() = TODO("not implemented")
+
     override val logger = AglEditorLogger { logLevel: LogLevel, msg: String, t: Throwable? ->
         when {
             logLevel <= LogLevel.Information -> {

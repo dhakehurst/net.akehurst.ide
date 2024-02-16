@@ -1,24 +1,28 @@
 package net.akehurst.ide.gui
 
 import codemirror.extensions.autocomplete.autocompletion
+import codemirror.extensions.commands.defaultKeymap
 import codemirror.extensions.commands.history
-import codemirror.extensions.view.highlightActiveLine
-import codemirror.extensions.view.highlightActiveLineGutter
-import codemirror.extensions.view.lineNumbers
+import codemirror.extensions.commands.historyKeymap
+import codemirror.extensions.commands.indentWithTab
+import codemirror.extensions.language.bracketMatching
+import codemirror.extensions.language.foldGutter
+import codemirror.extensions.search.highlightSelectionMatches
+import codemirror.extensions.search.searchKeymap
+import codemirror.extensions.view.*
 import codemirror.view.EditorViewConfig
 import kotlinx.browser.document
 import kotlinx.browser.window
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import net.akehurst.kotlin.html5.create
+import net.akehurst.kotlin.html5.widgets.TreeView
+import net.akehurst.kotlin.html5.widgets.TreeViewFunctions
 import net.akehurst.language.agl.processor.Agl
-import net.akehurst.language.agl.semanticAnalyser.ContextSimple
 import net.akehurst.language.editor.api.*
 import net.akehurst.language.editor.browser.codemirror.attachToCodeMirror
 import net.akehurst.language.editor.common.objectJS
 import net.akehurst.language.editor.common.objectJSTyped
-import net.akehurst.language.editor.technology.gui.widgets.TreeView
-import net.akehurst.language.editor.technology.gui.widgets.TreeViewFunctions
 import org.w3c.dom.HTMLDivElement
 import org.w3c.dom.HTMLElement
 import kotlin.coroutines.coroutineContext
@@ -35,6 +39,10 @@ class HtmlGui(
 
     companion object {
         const val EDITOR_DIV_ID = "editor"
+        const val documentation = """
+Enter SysML v2 Text here.
+Or use the side bar to open a local folder and edit *.sysml files.
+"""
     }
 
     lateinit var scope: CoroutineScope
@@ -133,16 +141,26 @@ class HtmlGui(
             doc = ""
             extensions = arrayOf(
                 lineNumbers(),
-                highlightActiveLine(),
                 highlightActiveLineGutter(),
                 history(),
+                foldGutter(),
+                drawSelection(),
+                dropCursor(),
+                codemirror.state.EditorState.allowMultipleSelections.of(true),
+                bracketMatching(),
                 autocompletion(objectJS {
                     activateOnTyping = false
-                })
+                }),
+                rectangularSelection(),
+                crosshairCursor(),
+                highlightActiveLine(),
+                highlightSelectionMatches(),
+                keymap.of(arrayOf(defaultKeymap, searchKeymap, historyKeymap, indentWithTab)),
+                placeholder(documentation)
             )
             parent = editorElement
         }
-        val ed = codemirror.view.EditorView(editorOptions)
+        val ed = codemirror.extensions.view.EditorView(editorOptions)
 
         val logFunction: LogFunction = { lvl, msg, t -> logger.log(lvl, msg, t) }
         gui.aglEditor = Agl.attachToCodeMirror<Any, Any>(
