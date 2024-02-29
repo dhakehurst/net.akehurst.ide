@@ -17,12 +17,14 @@ korge = "5.3.1"
 
 kotlinx-coroutines = "1.8.0-RC2"
 
+ace = "1.32.3"
 
 [libraries]
 nal-agl-processor = { module = "net.akehurst.language:agl-processor", version.ref = "nal-agl-processor" }
 nal-agl-editor-compose = { module = "net.akehurst.language.editor:agl-editor-compose", version.ref = "nal-agl-editor" }
 nal-agl-language-service = { module = "net.akehurst.language.editor:agl-language-service", version.ref = "nal-agl-editor" }
 nal-agl-editor-codemirror = { module = "net.akehurst.language.editor:agl-editor-browser-codemirror", version.ref = "nal-agl-editor" }
+nal-agl-editor-ace = { module = "net.akehurst.language.editor:agl-editor-browser-ace", version.ref = "nal-agl-editor" }
 
 nak-codemirror  = { module = "net.akehurst.kotlin:codemirror-api-realisation", version.ref = "nak-codemirror" }
 

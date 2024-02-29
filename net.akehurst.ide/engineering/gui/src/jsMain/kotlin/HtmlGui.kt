@@ -48,7 +48,7 @@ Or use the side bar to open a local folder and edit *.sysml files.
     lateinit var scope: CoroutineScope
     lateinit var sidebar: HTMLElement
     lateinit var projectTree: TreeView<FileSystemObjectHandle>
-    var doSaveTimeout:Int?=null
+    var doSaveTimeout: Int? = null
 
     suspend fun start() {
         scope = CoroutineScope(coroutineContext)
@@ -58,6 +58,8 @@ Or use the side bar to open a local folder and edit *.sysml files.
         while (null != appDiv.firstChild) {
             appDiv.removeChild(appDiv.firstChild!!)
         }
+
+        val logFunction: LogFunction = { lvl, msg, t -> logger.log(lvl, msg, t) }
 
         appDiv.create().article {
             header {
@@ -89,7 +91,7 @@ Or use the side bar to open a local folder and edit *.sysml files.
                                     scope.launch {
                                         // save existing file before opening new one, TODO: check for 'dirty'
                                         gui.openFilePath?.writeContent(gui.aglEditor.text)
-                                        gui.actionNewFile(it) {newFile ->
+                                        gui.actionNewFile(it) { newFile ->
                                             gui.actionSelectFile(newFile) {
                                                 gui.aglEditor.text = it
                                                 gui.openFilePath = newFile
@@ -112,7 +114,7 @@ Or use the side bar to open a local folder and edit *.sysml files.
                                     else -> arrayOf()
                                 }
                             },
-                            onClick = {file ->
+                            onClick = { file ->
                                 when (file) {
                                     is FileHandle -> {
                                         // save existing file before opening new one, TODO: check for 'dirty'
@@ -122,6 +124,7 @@ Or use the side bar to open a local folder and edit *.sysml files.
                                             gui.openFilePath = file
                                         }
                                     }
+
                                     else -> Unit
                                 }
                             }
@@ -134,7 +137,33 @@ Or use the side bar to open a local folder and edit *.sysml files.
                 div { attribute.id = EDITOR_DIV_ID }
             }
         }
+
         val editorElement = document.querySelector("div#$EDITOR_DIV_ID") as HTMLDivElement
+        gui.aglEditor = createCodeMirror(editorElement, logFunction, languageService)
+        //gui.aglEditor = createAce(editorElement, logFunction, languageService)
+
+        gui.aglEditor.editorOptions = EditorOptionsDefault(
+            parse = true,
+            parseLineTokens = true,
+            lineTokensChunkSize = 1000,
+            parseTree = false,
+            syntaxAnalysis = true, //TODO
+            syntaxAnalysisAsm = false,  //TODO
+            semanticAnalysis = true,
+            semanticAnalysisAsm = false
+        )
+        gui.aglEditor.onTextChange {
+            // if save not scheduled, schedule save in 5 seconds
+            if (doSaveTimeout == null) {
+                doSaveTimeout = window.setTimeout({
+                    scope.launch { gui.openFilePath?.writeContent(gui.aglEditor.text) }
+                    doSaveTimeout = null
+                }, 5000)
+            }
+        }
+    }
+
+    fun createCodeMirror(editorElement: HTMLDivElement, logFunction: LogFunction, languageService: LanguageService): AglEditor<Any,Any> {
         val editorId = editorElement.id
         val languageId = gui.langId
         val editorOptions = objectJSTyped<EditorViewConfig> {
@@ -155,15 +184,14 @@ Or use the side bar to open a local folder and edit *.sysml files.
                 crosshairCursor(),
                 highlightActiveLine(),
                 highlightSelectionMatches(),
-                keymap.of(arrayOf(defaultKeymap, searchKeymap, historyKeymap, indentWithTab)),
+                keymap.of(arrayOf(*defaultKeymap, *searchKeymap, *historyKeymap, indentWithTab)),
                 placeholder(documentation)
             )
             parent = editorElement
         }
         val ed = codemirror.extensions.view.EditorView(editorOptions)
 
-        val logFunction: LogFunction = { lvl, msg, t -> logger.log(lvl, msg, t) }
-        gui.aglEditor = Agl.attachToCodeMirror<Any, Any>(
+       return Agl.attachToCodeMirror<Any, Any>(
             languageService = languageService,
             containerElement = editorElement,
             languageId = languageId,
@@ -172,27 +200,45 @@ Or use the side bar to open a local folder and edit *.sysml files.
             cmEditor = ed,
             codemirror = codemirror.CodeMirror
         )
-        gui.aglEditor.editorOptions = EditorOptionsDefault(
-            parse = true,
-            parseLineTokens = true,
-            lineTokensChunkSize = 1000,
-            parseTree = false,
-            syntaxAnalysis = true, //TODO
-            syntaxAnalysisAsm = false,  //TODO
-            semanticAnalysis = true,
-            semanticAnalysisAsm = false
-        )
-        gui.aglEditor.onTextChange {
-            // if save not scheduled, schedule save in 5 seconds
-            if (doSaveTimeout==null) {
-                doSaveTimeout = window.setTimeout({
-                    scope.launch { gui.openFilePath?.writeContent(gui.aglEditor.text) }
-                    doSaveTimeout = null
-                }, 5000)
-            }
-        }
     }
 
+    /*
+    fun createAce(editorElement: HTMLDivElement, logFunction: LogFunction, languageService: LanguageService): AglEditor<Any, Any> {
+        val editorId = editorElement.id
+        val languageId = editorElement.getAttribute("agl-language")!!
+        val ed: ace.Editor = ace.Editor(
+            ace.VirtualRenderer(editorElement, null),
+            ace.Ace.createEditSession(""),
+            objectJS {}
+        )
+        val aceOptions = objectJS {
+            editor = objectJS {
+                enableBasicAutocompletion = true
+                enableSnippets = true
+//            enableLiveAutocompletion = false
+            }
+            renderer = {
+
+            }
+        }
+        ed.setOptions(aceOptions.editor)
+        ed.renderer.setOptions(aceOptions.renderer)
+        val ace = object : IAce {
+            override fun createRange(startRow: Int, startColumn: Int, endRow: Int, endColumn: Int): IRange {
+                return ace.Range(startRow, startColumn, endRow, endColumn)
+            }
+        }
+        return Agl.attachToAce(
+            languageService = languageService,
+            containerElement = editorElement,
+            languageId = languageId,
+            editorId = editorId,
+            logFunction = logFunction,
+            aceEditor = ed,
+            ace = ace
+        )
+    }
+*/
     private fun actionToggleSidebar() {
         if (sidebar.hasAttribute("open")) {
             sidebar.removeAttribute("open")

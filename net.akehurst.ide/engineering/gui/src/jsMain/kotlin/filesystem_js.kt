@@ -42,8 +42,12 @@ actual object UserFileSystem {
                 mode = "readwrite"
             }
         )
-        val handle: FileSystemDirectoryHandle = p.await()
-        return DirectoryHandleJS(this, handle)
+        return try {
+            val handle: FileSystemDirectoryHandle = p.await()
+            DirectoryHandleJS(this, handle)
+        } catch (t: Throwable) {
+            null
+        }
     }
 
     actual suspend fun selectExistingFileFromDialog(): FileHandle? {
@@ -53,8 +57,12 @@ actual object UserFileSystem {
                 mode = "readwrite"
             }
         )
-        val handle: FileSystemFileHandle = p.await()
-        return FileHandleJS(this, handle)
+        return try {
+            val handle: FileSystemFileHandle = p.await()
+            FileHandleJS(this, handle)
+        } catch (t: Throwable) {
+            null
+        }
     }
 
     actual suspend fun selectNewFileFromDialog(): FileHandle? {
@@ -69,8 +77,12 @@ actual object UserFileSystem {
 //                )
             }
         )
-        val handle: FileSystemFileHandle = p.await()
-        return FileHandleJS(this, handle)
+        return try {
+            val handle: FileSystemFileHandle = p.await()
+            FileHandleJS(this, handle)
+        } catch (t: Throwable) {
+            null
+        }
     }
 
 
@@ -95,7 +107,7 @@ actual object UserFileSystem {
     actual suspend fun createNewFile(parentPath: DirectoryHandle): FileHandle? {
         return when (parentPath) {
             is DirectoryHandleJS -> {
-TODO()
+                TODO()
             }
 
             else -> error("DirectoryHandle is not a DirectoryHandleJS: ${parentPath::class.simpleName}")
