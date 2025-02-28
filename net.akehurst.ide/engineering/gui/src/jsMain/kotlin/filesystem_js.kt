@@ -13,7 +13,13 @@ data class DirectoryHandleJS(
     val fileSystem: UserFileSystem,
     val handle: FileSystemDirectoryHandle
 ) : DirectoryHandle {
+
+    override val path: String get() = TODO()
+
     override val name: String get() = handle.name
+
+    override suspend fun entry(name: String): FileSystemObjectHandle? =
+        fileSystem.getEntry(this, name)
 
     override suspend fun listContent(): List<FileSystemObjectHandle> =
         fileSystem.listDirectoryContent(this)
@@ -25,6 +31,7 @@ data class FileHandleJS(
     val handle: FileSystemFileHandle
 ) : FileHandle {
     override val name: String get() = handle.name
+    override val extension: String get() = name.substringAfterLast('.')
 
     override suspend fun readContent(): String? =
         fileSystem.readFileContent(this)
@@ -35,7 +42,30 @@ data class FileHandleJS(
 
 actual object UserFileSystem {
 
-    actual suspend fun selectProjectDirectoryFromDialog(): DirectoryHandle? {
+    actual suspend fun getEntry(parentDirectory: DirectoryHandle, name: String): FileSystemObjectHandle? {
+        return when (parentDirectory) {
+            is DirectoryHandleJS -> {
+                for (v in parentDirectory.handle.values()) {
+                    when (v.name) {
+                        name -> {
+                            return when (v.kind) {
+                                "file" -> FileHandleJS(this, parentDirectory.handle.getFileHandle(v.name).await())
+                                "directory" -> DirectoryHandleJS(this, parentDirectory.handle.getDirectoryHandle(v.name))
+                                else -> error("Should not happen")
+                            }
+                        }
+
+                        else -> null
+                    }
+                }
+                null
+            }
+
+            else -> null
+        }
+    }
+
+    actual suspend fun selectProjectDirectoryFromDialog(useDispatcher: Boolean, selected: String?): DirectoryHandle? {
         val w: dynamic = window
         val p: Promise<dynamic> = w.showDirectoryPicker(
             objectJS {
@@ -65,7 +95,7 @@ actual object UserFileSystem {
         }
     }
 
-    actual suspend fun selectNewFileFromDialog(): FileHandle? {
+    actual suspend fun selectNewFileFromDialog(parentDirectory: DirectoryHandle): FileHandle? {
         val w: dynamic = window
         val p: Promise<dynamic> = w.showSaveFilePicker(
             objectJS {
@@ -84,7 +114,6 @@ actual object UserFileSystem {
             null
         }
     }
-
 
     actual suspend fun listDirectoryContent(dir: DirectoryHandle): List<FileSystemObjectHandle> =
         when (dir) {
@@ -133,7 +162,6 @@ actual object UserFileSystem {
             else -> error("FileHandle is not a FileHandleJS: ${file::class.simpleName}")
         }
 
-
     actual suspend fun writeFileContent(file: FileHandle, content: String) {
         when (file) {
             is FileHandleJS -> {
@@ -145,6 +173,5 @@ actual object UserFileSystem {
             else -> error("FileHandle is not a FileHandleJS: ${file::class.simpleName}")
         }
     }
-
 
 }

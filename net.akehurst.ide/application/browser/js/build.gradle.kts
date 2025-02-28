@@ -1,7 +1,8 @@
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 
 plugins {
-    id("org.jetbrains.compose")
+    alias(libs.plugins.compose)
+    alias(libs.plugins.kotlin.compose)
 }
 
 dependencies {
@@ -69,10 +70,10 @@ val workerTaskDev = tasks.register<Copy>("copyAglEditorWorkerJsDev") {
 tasks.getByName("jsBrowserDevelopmentRun").dependsOn(workerTaskDev)
 tasks.getByName("jsBrowserDevelopmentWebpack").dependsOn(workerTaskDev)
 tasks.getByName("jsDevelopmentExecutableCompileSync").dependsOn(workerTaskDev)
-tasks.getByName("jsBrowserDevelopmentExecutableDistributeResources").dependsOn(workerTaskDev)
+//tasks.getByName("jsBrowserDevelopmentExecutableDistributeResources").dependsOn(workerTaskDev)
 
 tasks.getByName("jsBrowserProductionRun").dependsOn(workerTask)
 tasks.getByName("jsBrowserProductionWebpack").dependsOn(workerTask)
 tasks.getByName("jsProductionExecutableCompileSync").dependsOn(workerTask)
-tasks.getByName("jsBrowserProductionExecutableDistributeResources").dependsOn(workerTask)
+//tasks.getByName("jsBrowserProductionExecutableDistributeResources").dependsOn(workerTask)
 tasks.getByName("jsJar").dependsOn(workerTask)

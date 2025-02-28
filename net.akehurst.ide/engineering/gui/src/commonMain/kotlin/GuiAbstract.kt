@@ -1,101 +1,44 @@
-@file:Suppress("UNUSED", "INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
+//@file:Suppress("UNUSED", "INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
 
 package net.akehurst.ide.gui
 
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.ScrollState
-import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.text.*
-import androidx.compose.foundation.text.selection.LocalTextSelectionColors
-import androidx.compose.foundation.text.selection.TextSelectionColors
-import androidx.compose.foundation.text2.BasicTextField2
-import androidx.compose.foundation.text2.input.TextFieldState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.key.KeyEvent
-import androidx.compose.ui.input.key.onKeyEvent
-import androidx.compose.ui.input.key.onPreviewKeyEvent
-import androidx.compose.ui.text.*
-import androidx.compose.ui.text.font.FontStyle
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
-import korlibs.image.color.Colors
+import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import net.akehurst.ide.common.data.fileextensionmap.FileExtensionMap
 import net.akehurst.ide.user.inf.User
-import net.akehurst.kotlin.compose.editor.*
-import net.akehurst.kotlin.compose.editor.api.*
-import net.akehurst.language.agl.agl.parser.SentenceDefault
-import net.akehurst.language.agl.api.runtime.Rule
-import net.akehurst.language.agl.language.style.asm.AglStyleModelDefault
-import net.akehurst.language.agl.processor.Agl
-import net.akehurst.language.agl.regex.RegexEngineAgl
-import net.akehurst.language.agl.regex.RegexEnginePlatform
-import net.akehurst.language.agl.scanner.Matchable
-import net.akehurst.language.agl.scanner.ScannerAbstract
-import net.akehurst.language.agl.semanticAnalyser.ContextSimple
-import net.akehurst.language.agl.sppt.CompleteTreeDataNode
+import net.akehurst.kotlin.compose.editor.ComposableCodeEditor
+import net.akehurst.kotlin.compose.editor.ComposableCodeEditor2
+import net.akehurst.language.agl.Agl
+import net.akehurst.language.agl.simple.ContextAsmSimple
 import net.akehurst.language.api.processor.*
-import net.akehurst.language.api.scanner.Scanner
-import net.akehurst.language.api.sppt.Sentence
-import net.akehurst.language.api.style.AglStyleModel
-import net.akehurst.language.api.style.AglStyleRule
-import net.akehurst.language.editor.api.*
-import net.akehurst.language.editor.common.AglStyleHandler
-import org.jetbrains.skiko.SkikoKeyboardEvent
+import net.akehurst.language.asm.api.Asm
+import net.akehurst.language.editor.api.AglEditor
+import net.akehurst.language.editor.api.AglEditorLogger
+import net.akehurst.language.editor.api.LanguageService
+import net.akehurst.language.editor.api.LogFunction
+import net.akehurst.language.editor.common.aglEditorOptions
+import net.akehurst.language.editor.compose.attachToComposeEditor
+import kotlin.coroutines.coroutineContext
 
 expect class Gui() : GuiAbstract {
-
+    override val logFunction: LogFunction
+    override val appFileSystem: AppFilesystem
+    override val userSettings: AppFilesystem
+    override val languageService: LanguageService
 }
-
-data class AutocompleteItemDefault(
-    override val name: String,
-    override val text: String
-) : AutocompleteItem {
-    override fun equalTo(other: AutocompleteItem): Boolean = this.name == other.name
-}
-
-val String.toComposeColor: Color
-    get() {
-        val rgba = when {
-            this.startsWith("#") -> Colors[this.lowercase()]
-            else -> Colors[CssColours.nameToHex[this.lowercase()]!!]
-        }
-        return Color(rgba.r, rgba.g, rgba.b, rgba.a)
-    }
-
-// Wanted order
-// 1 references
-// 2 literals words (alphabetical
-// 3 literals symbols
-// 4 patterns
-// 5 segments
-val CompletionItem.orderValue
-    get() = when (this.kind) {
-        CompletionItemKind.REFERRED -> 1
-        CompletionItemKind.LITERAL -> when {
-            GuiAbstract.REGEX_LETTER.matchesAt(this.text, 0) -> {
-                2
-            }
-
-            else -> 3
-        }
-
-        CompletionItemKind.PATTERN -> 4
-        CompletionItemKind.SEGMENT -> 5
-    }
 
 abstract class GuiAbstract : User {
 
@@ -103,255 +46,102 @@ abstract class GuiAbstract : User {
         val REGEX_LETTER = Regex("[a-zA-Z]")
     }
 
-    abstract val appFileSystem: AppFileSystem
-    abstract val logger: AglEditorLogger
+    /**
+     * directory for application files
+     * usually in the app installation directory
+     */
+    abstract val appFileSystem: AppFilesystem
 
-    val ep = EndPointIdentity("ide", "")
-    val langId = "sysml"
-    val aglOptions = Agl.options<Any, Any> { }
-    val regexEngineKind = RegexEngineKind.PLATFORM
-    var scannerMatchables = listOf<Matchable>()
-    val styleHandler = object : AglStyleHandler(langId) {
-        override fun <EditorStyleType : Any> convert(rule: AglStyleRule): EditorStyleType {
-            val ss = rule.styles.values.map { style ->
-                when (style.name) {
-                    "foreground" -> SpanStyle(color = style.value.toComposeColor)
-                    "background" -> SpanStyle(background = style.value.toComposeColor)
-                    "font-style" -> when (style.value) {
-                        "bold" -> SpanStyle(fontWeight = FontWeight.Bold)
-                        "italic" -> SpanStyle(fontStyle = FontStyle.Italic)
-                        else -> SpanStyle() //unsupported
-                    }
+    /**
+     * directory for user settings
+     * usually in '~/.net.akehurst.ide'
+     */
+    abstract val userSettings: AppFilesystem
 
-                    else -> SpanStyle() //unsupported
-                }
-            }.reduce { acc, it -> it.merge(acc) }
-            return ss as EditorStyleType
-        }
-    }
-    val simpleScanner: Scanner by lazy {
-        val regexEngine = when (regexEngineKind) {
-            RegexEngineKind.PLATFORM -> RegexEnginePlatform
-            RegexEngineKind.AGL -> RegexEngineAgl
-        }
-        object : ScannerAbstract(regexEngine) {
-            override val kind: ScannerKind get() = error("Not used")
-            override val matchables: List<Matchable> get() = scannerMatchables
-            override val validTerminals: List<Rule> get() = error("Not used")
-            override fun reset() {}
-            override fun isLookingAt(sentence: Sentence, position: Int, terminalRule: Rule): Boolean = error("Not used")
-            override fun findOrTryCreateLeaf(sentence: Sentence, position: Int, terminalRule: Rule): CompleteTreeDataNode = error("Not used")
-        }
-    }
-    lateinit var aglEditor: AglEditor<Any, Any>
+    abstract val logFunction: LogFunction
+
+    val logger by lazy { AglEditorLogger("GuiAbstract", logFunction) }
+    val editorId = "ide-editor"
+    val langId = LanguageIdentity("sysml")
+    val languageDefinition = Agl.languageDefinitionFromStringSimple(
+        langId,
+        GrammarString("namespace test grammar Test { S = 'Hello' ; } ")
+    )
+    val editorOptions = aglEditorOptions()
+    var doSaveScheduled = false
 
     abstract val languageService: LanguageService
-    val autoCompleteResults = mutableListOf<AutocompleteSuggestion>()
 
-    var ready = false
-    var openProjectDirectory: DirectoryHandle? = null
-    var openFilePath: FileHandle? = null
+    val composeableEditor = ComposableCodeEditor2()
+    val aglEditor: AglEditor<Any, Any> by lazy {
+        Agl.attachToComposeEditor<Asm, ContextAsmSimple>(
+            languageService,
+            languageDefinition,
+            editorId,
+            editorOptions,
+            logFunction,
+            composeableEditor
+        ).also {
+            logger.logTrace {"Agl attachToComposeEditor finished"}
+        } as AglEditor<Any, Any>
+    }
+
+    val guiState = GuiState()
 
     fun myOnKeyEvent(keyEvent: KeyEvent): Boolean {
-        (keyEvent.nativeKeyEvent as SkikoKeyboardEvent).platform?.myConsume()
+        //    (keyEvent.nativeKeyEvent as SkikoKeyboardEvent).platform?.myConsume()
         return true
     }
 
     override suspend fun start() {
-//        languageService.addResponseListener(
-//            ep, object : LanguageServiceResponse {
-//                override fun processorCreateResponse(endPointIdentity: EndPointIdentity, status: MessageStatus, message: String, issues: List<LanguageIssue>, scannerMatchables: List<Matchable>) {
-//                    scannerMatchables.forEach {
-//                        it.using(RegexEnginePlatform)
-//                    }
-//                    this@GuiAbstract.scannerMatchables = scannerMatchables
-//                }
-//
-//                override fun processorDeleteResponse(endPointIdentity: EndPointIdentity, status: MessageStatus, message: String) {
-//                }
-//
-//                override fun processorSetStyleResponse(endPointIdentity: EndPointIdentity, status: MessageStatus, message: String, issues: List<LanguageIssue>, styleModel: AglStyleModel?) {
-//                    when (status) {
-//                        MessageStatus.START -> Unit
-//                        MessageStatus.SUCCESS -> {
-//                            this@GuiAbstract.styleHandler.updateStyleModel(styleModel ?: AglStyleModelDefault(emptyList()))
-//                            ready = true
-//                        }
-//
-//                        MessageStatus.FAILURE -> {
-//                            issues.forEach {
-//                                println(it) //TODO
-//                            }
-//                        }
-//                    }
-//                }
-//
-//                override fun sentenceCodeCompleteResponse(
-//                    endPointIdentity: EndPointIdentity,
-//                    status: MessageStatus,
-//                    message: String,
-//                    issues: List<LanguageIssue>,
-//                    completionItems: List<CompletionItem>
-//                ) {
-//                    val auto = autoCompleteResults.removeFirstOrNull()
-//
-//                    val sorted = completionItems.sortedWith { a, b ->
-//                        val av = a.orderValue
-//                        val bv = b.orderValue
-//                        when {
-//                            av > bv -> 1
-//                            av < bv -> -1
-//                            else -> {
-//                                a.text.compareTo(b.text)
-//                            }
-//                        }
-//                    }
-//                    if (null != auto) {
-//                        when (status) {
-//                            MessageStatus.SUCCESS -> {
-//                                val items = sorted.map {
-//                                    object : AutocompleteItem {
-//                                        //val kind = it.kind
-//                                        override val name: String?
-//                                            get() = when (it.kind) {
-//                                                CompletionItemKind.LITERAL -> null
-//                                                else -> it.name
-//                                            }
-//                                        override val text: String get() = it.text
-//                                        override fun equalTo(other: AutocompleteItem): Boolean = when {
-//                                            name != other.name -> false
-//                                            text != other.text -> false
-//                                            else -> true
-//                                        }
-//                                    }
-//                                }
-//                                auto.provide(items)
-//                            }
-//
-//                            else -> auto.provide(emptyList())
-//                        }
-//                    }
-//                }
-//
-//                override fun sentenceLineTokensResponse(endPointIdentity: EndPointIdentity, status: MessageStatus, message: String, startLine: Int, lineTokens: List<List<AglToken>>) {
-//                    when (status) {
-//                        MessageStatus.SUCCESS -> {
-//                            lineTokens.forEachIndexed { index, tokens ->
-//                                // could get empty tokens for a line from a partial parse
-//                                val lineStart = tokens.firstOrNull()?.position ?: 0 // if not tokens then no conversion so line start pos does not matter
-//                                this@GuiAbstract.tokensByLine[startLine + index] = convertTokens(tokens, lineStart)
-//                            }
-//                        }
-//
-//                        else -> Unit //TODO
-//                    }
-//                }
-//
-//                override fun sentenceParseResponse(endPointIdentity: EndPointIdentity, status: MessageStatus, message: String, issues: List<LanguageIssue>, tree: Any?) {
-//                }
-//
-//                override fun sentenceSemanticAnalysisResponse(endPointIdentity: EndPointIdentity, status: MessageStatus, message: String, issues: List<LanguageIssue>, asm: Any?) {
-//                }
-//
-//                override fun sentenceSyntaxAnalysisResponse(endPointIdentity: EndPointIdentity, status: MessageStatus, message: String, issues: List<LanguageIssue>, asm: Any?) {
-//                }
-//
-//            }
-//        )
 
+        selectProjectDirectoryFromUserSettings()
+
+        val scope = CoroutineScope(coroutineContext)
+        /*
         val grammarStr = appFileSystem.read("languages/SysML_2_Std/grammar.agl")
         val crossReferenceModelStr = appFileSystem.read("languages/SysML_2_Std/references.agl")
         val styleStr = appFileSystem.read("languages/SysML_2_Std/style-light.agl")
-        this.updateEditorLanguage(
-            grammarStr = grammarStr,
-            crossReferenceModelStr = crossReferenceModelStr,
-            styleStr = styleStr
+        aglEditor.updateLanguageDefinitionWith(
+            grammarStr = GrammarString(grammarStr),
+            typeModelStr = null,
+            asmTransformStr = null,
+            crossReferenceStr = CrossReferenceString(crossReferenceModelStr),
+            styleStr = StyleString(styleStr)
         )
-//        languageService.request.processorCreateRequest(
-//            ep,
-//            langId,
-//            grmrStr,
-//            null,
-//            EditorOptionsDefault(
-//                parse = true,
-//                parseLineTokens = true,
-//                lineTokensChunkSize = 1000,
-//                parseTree = false,
-//                syntaxAnalysis = false, //TODO
-//                syntaxAnalysisAsm = false,  //TODO
-//                semanticAnalysis = false,
-//                semanticAnalysisAsm = false
-//            )
-//        )
-//        languageService.request.processorSetStyleRequest(
-//            ep,
-//            langId,
-//            styleStr
-//        )
-    }
-
-    fun updateEditorLanguage(grammarStr: String?, crossReferenceModelStr: String?, styleStr: String?) {
-        aglEditor.processOptions.semanticAnalysis.context = ContextSimple()
-        aglEditor.languageDefinition.update(grammarStr, crossReferenceModelStr, styleStr)
-    }
-
-    @OptIn(ExperimentalMaterial3Api::class)
-    @Composable
-    fun content() = content3()
-
-    @OptIn(ExperimentalMaterial3Api::class)
-    @Composable
-    fun content1() {
-        var text by remember { mutableStateOf(TextFieldValue("")) }
-        TextField(
-            value = text,
-            label = { Text(text = "Enter Your Name") },
-            modifier = Modifier
-                .onPreviewKeyEvent { myOnKeyEvent(it) }
-                .onKeyEvent { myOnKeyEvent(it) },
-            onValueChange = {
-                text = it
+        */
+        aglEditor.onTextChange {
+            guiState.selectedFileIsDirty = true
+            // if save not scheduled, schedule save in 5 seconds
+            if (doSaveScheduled.not()) {
+                doSaveScheduled = true
+                scope.launch {
+                    delay(5000)
+                    guiState.selectedFile?.writeContent(aglEditor.text)
+                    guiState.selectedFileIsDirty = false
+                    doSaveScheduled = false
+                }
             }
-        )
-    }
+        }
 
-    @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
-    @Composable
-    fun content2() {
-        val state by remember { mutableStateOf(TextFieldState("")) }
-        BasicTextField2(
-            state = state,
-            modifier = Modifier
-                .onPreviewKeyEvent { true }
-        )
+        logger.logTrace{"GUI start finished"}
     }
 
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
-    fun content3() {
-        //val longText = (0..30).joinToString(separator = "\n") { "aa" + "$it".repeat(5) + "bbb" }
-        val numbers = (0..50).joinToString(separator = "\n") { "$it" }
-        val initText = "" //"hello world\nhello bill!"
-
-        val defaultTextStyle = SpanStyle(color = MaterialTheme.colorScheme.onBackground, background = MaterialTheme.colorScheme.background)
-        val drawerState = rememberDrawerState(DrawerValue.Closed)
+    fun content() {
+        var state by remember { mutableStateOf(guiState) }
         val scope = rememberCoroutineScope()
         val treeState by remember { mutableStateOf(TreeViewState()) }
-        val editorState by remember {
-            mutableStateOf(
-                EditorState(
-                    initialText = initText,
-                    onTextChange = { txt ->
-                        scope.launch {
-                            this@GuiAbstract.onTextChange(txt)
-                        }
-                    },
-                    defaultTextStyle = defaultTextStyle,
-                    getLineTokens = ::getLineTokens,
-                    requestAutocompleteSuggestions = ::requestAutocompleteSuggestions
-                )
-            )
+        val drawerState = rememberDrawerState(DrawerValue.Closed) {
+            state.openProjectDirectory?.let {
+                scope.launch {
+                    refreshTreeView(it, treeState)
+                }
+            }
+            true
         }
+        var selectedTab by remember { mutableStateOf(0) }
 
         return MaterialTheme(
             colorScheme = AppTheme.colors.light,
@@ -365,20 +155,17 @@ abstract class GuiAbstract : User {
                             label = {
                                 Column {
                                     Text(text = "Open Project Folder")
-                                    Text(text = "New File", modifier = Modifier.clickable(
-                                        onClick = {
-                                            scope.launch {
-                                                openProjectDirectory?.let {
-                                                    actionNewFile(it) {
-                                                        refreshTreeView(openProjectDirectory!!, treeState)
-                                                        actionSelectFile(it) {
-
-                                                        }
+                                    Text(
+                                        text = "New File", modifier = Modifier.clickable(
+                                            onClick = {
+                                                scope.launch {
+                                                    state.openProjectDirectory?.let {
+                                                        actionNewFile(it)
+                                                        refreshTreeView(it, treeState)
                                                     }
                                                 }
                                             }
-                                        }
-                                    ))
+                                        ))
                                 }
                             },
                             selected = false,
@@ -392,12 +179,12 @@ abstract class GuiAbstract : User {
                                 scope.launch {
                                     actionOpenProject() {
                                         refreshTreeView(it, treeState)
-                                        openProjectDirectory = it
+                                        state.openProjectDirectory = it
                                     }
                                 }
                             }
                         )
-                        Divider()
+                        HorizontalDivider()
                         TreeView(
                             state = treeState,
                             onSelectItem = {
@@ -406,10 +193,7 @@ abstract class GuiAbstract : User {
                                     handle?.let {
                                         when {
                                             handle is FileHandle -> {
-                                                actionSelectFile(handle) {
-                                                    editorState.setNewText(it)
-                                                    openFilePath = handle
-                                                }
+                                                actionSelectFile(handle)
                                                 drawerState.close()
                                             }
 
@@ -442,65 +226,143 @@ abstract class GuiAbstract : User {
                                         contentDescription = "Toggle drawer"
                                     )
                                 }
-                            }
+                            },
+                            modifier = Modifier
+                                .border(width = 1.dp, color = MaterialTheme.colorScheme.onBackground)
                         )
                     },
                     bottomBar = {
-                        BottomAppBar() { }
+                        BottomAppBar(
+                            modifier = Modifier
+                                .padding(0.dp)
+                                .height(20.dp)
+                                .border(width = 1.dp, color = MaterialTheme.colorScheme.onBackground)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .padding(0.dp)
+                            ) {
+                                Spacer(modifier = Modifier.weight(1f).padding(0.dp))
+                                Text("row: ", fontSize = 12.sp, modifier = Modifier.padding(0.dp))
+                                Text("col: ", fontSize = 12.sp, modifier = Modifier.padding(0.dp))
+                            }
+                        }
                     },
                 ) { innerPadding ->
-
-//                    TestEd(
-//                        initialText = initText,
-//                        modifier = Modifier
-//                            .padding(innerPadding)
-//                            .fillMaxSize(),
-//                    )
-
-                    CodeEditor(
+                    Column(
                         modifier = Modifier
                             .padding(innerPadding)
                             .fillMaxSize(),
-                        editorState = editorState,
-                    )
+                    ) {
+                        PrimaryScrollableTabRow(
+                            selectedTabIndex = selectedTab,
+                            modifier = Modifier
+                                .border(width = 1.dp, color = MaterialTheme.colorScheme.onBackground)
+                                .height(30.dp)
+                                .fillMaxWidth()
+                        ) {
+                            when {
+                                state.openFiles.isEmpty() -> {
+                                    Tab(
+                                        selected = true,
+                                        onClick = { },
+                                        text = { Text(text = "<no file>") },
+                                    )
+                                }
+
+                                else -> state.openFiles.forEachIndexed { idx, fileHandle ->
+                                    Tab(
+                                        selected = selectedTab == idx,
+                                        onClick = {
+                                            selectedTab = idx
+                                            scope.launch { selectTab(idx, fileHandle) }
+                                        },
+                                        content = {
+                                            tabContent(text = fileHandle.name, isDirty = state.selectedFileIsDirty, onClose = {
+                                                scope.launch { closeTab(idx, fileHandle) }
+                                            })
+                                        },
+                                    )
+                                }
+                            }
+                        }
+                        Surface(
+                            modifier = Modifier.border(width = 1.dp, color = MaterialTheme.colorScheme.onBackground),
+                        ) {
+                            composeableEditor.content(
+                                modifier = Modifier
+                                    //.padding(innerPadding)
+                                    .fillMaxWidth()
+                                //.fillMaxSize(),
+                            )
+                        }
+                    }
                 }
             }
         }
     }
 
-    data class EditorLineTokenDef(
-        override val start: Int,
-        override val finish: Int,
-        override val style: SpanStyle
-    ) : EditorLineToken
+    suspend fun selectProjectDirectoryFromUserSettings() {
+        val appStateFile = userSettings.root.file("app-state.map") ?: let {
+            userSettings.root.createFile("app-state.map")
+        }
+        val lastDir = appStateFile?.readContent()?.let {
+            val map = FileExtensionMap.process(it)
+            map["last-project"]
+        }
+        lastDir?.let {
+            guiState.openProjectDirectory = UserFileSystem.selectProjectDirectoryFromDialog(true, lastDir)
+        }
+    }
 
-    val tokensByLine = mutableMapOf<Int, List<EditorLineToken>>()
-
-    suspend fun selectProjectDirectoryFromDialog(): DirectoryHandle? =
-        UserFileSystem.selectProjectDirectoryFromDialog()
+    suspend fun selectProjectDirectoryFromDialog(): DirectoryHandle? {
+        val selected = UserFileSystem.selectProjectDirectoryFromDialog(false, guiState.openProjectDirectory?.path)
+        val appStateFile = userSettings.root.file("app-state.map")
+        selected?.let {
+            appStateFile?.writeContent("last-project : ${it.path}")
+        }
+        return selected
+    }
 
     suspend fun listFolderContent(directory: DirectoryHandle): List<FileSystemObjectHandle> =
         UserFileSystem.listDirectoryContent(directory)
 
     suspend fun refreshTreeView(fromDirectory: DirectoryHandle, treeViewState: TreeViewState) {
         val dirEntries = listFolderContent(fromDirectory)
-        val topLevelItems = dirEntries.map { TreeNode(it.name, emptyList()) }
+        val topLevelItems = dirEntries.map { entry ->
+            TreeNode(entry.name, emptyList(), mapOf("handle" to fromDirectory.entry(entry.name)))
+        }
         treeViewState.setNewItems(topLevelItems)
     }
 
+    fun alert(message: String) {
+        logger.logError{message}
+        //TODO
+    }
+
     suspend fun actionOpenProject(action: suspend (projectDir: DirectoryHandle) -> Unit) {
+        logger.logTrace{"actionOpenProject"}
         val projectDir = selectProjectDirectoryFromDialog()
         projectDir?.let { action.invoke(it) }
+        logger.logTrace{"actionOpenProject finished"}
     }
 
-    suspend fun actionSelectFile(handle: FileHandle, action: suspend (fileContent: String) -> Unit) {
-        val fileContent = readFileContent(handle)
-        fileContent?.let { action.invoke(it) }
+    suspend fun actionSelectFile(fileHandle: FileHandle) {
+        logger.logTrace{"actionSelectFile ${fileHandle.name}"}
+        fileHandle.readContent()?.let {
+            setLanguageForExtension(fileHandle.extension)
+            composeableEditor.rawText = it
+            guiState.selectedFile = fileHandle
+            guiState.openFiles.add(fileHandle)
+        }
+        logger.logTrace{"actionSelectFile finished"}
     }
 
-    suspend fun actionNewFile(parentDirectory: DirectoryHandle, action: suspend (newFileHandle: FileHandle) -> Unit): FileHandle? {
-        val file = UserFileSystem.selectNewFileFromDialog()
-        file?.let { action.invoke(it) }
+    suspend fun actionNewFile(parentDirectory: DirectoryHandle): FileHandle? {
+        val file = UserFileSystem.selectNewFileFromDialog(parentDirectory)
+        file?.let {
+            actionSelectFile(it)
+        }
         return file
     }
 
@@ -509,234 +371,105 @@ abstract class GuiAbstract : User {
         file.writeContent(content)
     }
 
-    suspend fun onTextChange(text: String) {
-        if (ready) {
-            tokensByLine.clear()
-//            println("textChange")
-            this.languageService.request.sentenceProcessRequest(ep, langId, text, aglOptions)
-            openFilePath?.let { path ->
-                saveFileContent(path, text)
+    fun createNewTab(handle: FileHandle, fileContent: String) {
+
+    }
+
+    suspend fun selectTab(tabIndex: Int, fileHandle: FileHandle) {
+        fileHandle.readContent()?.let {
+            setLanguageForExtension(fileHandle.extension)
+            composeableEditor.rawText = it
+            guiState.selectedFile = fileHandle
+        }
+    }
+
+    suspend fun closeTab(tabIndex: Int, fileHandle: FileHandle) {
+        guiState.openFiles.remove(fileHandle)
+        when {
+            guiState.openFiles.size > tabIndex -> {
+
             }
         }
     }
 
-    fun getLineTokens(lineNumber: Int, lineOffset: Int, lineText: String): List<EditorLineToken> {
-//        println("getLineTokens")
-        return tokensByLine[lineNumber] ?: getTokensByScan(lineNumber, lineOffset, lineText)
-    }
+    suspend fun setLanguageForExtension(extension: String) {
+        val userFile = userSettings.root.file("file-extensions.map") ?: let {
+            userSettings.root.createFile("file-extensions.map")
+        }
 
-    fun getTokensByScan(lineNumber: Int, lineOffset: Int, lineText: String): List<EditorLineToken> {
-//        println("getTokensByScan($lineNumber,$lineOffset,'${lineText.substring(0, min(5, lineText.length))}...')")
-        val sr = simpleScanner.scan(SentenceDefault(lineText), 0, lineOffset)
-        val aglTokens = this.styleHandler.transformToTokens(sr.tokens)
-        val edTokens = convertTokens(aglTokens, lineOffset)
-        this.tokensByLine[lineNumber] = edTokens
-        return edTokens
-    }
-
-    fun convertTokens(tokens: List<AglToken>, lineOffset: Int) = tokens.map { tok ->
-        val s = tok.position - lineOffset
-        EditorLineTokenDef(
-            start = s,
-            finish = s + tok.length,
-            style = tok.styles
-                .map { styleHandler.editorStyleFor<SpanStyle>(it) ?: SpanStyle() }
-                .reduce { acc, it -> it.merge(acc) }
-        )
-    }
-
-    suspend fun requestAutocompleteSuggestions(position: Int, text: String, result: AutocompleteSuggestion) {
-        this.autoCompleteResults.add(result)
-        languageService.request.sentenceCodeCompleteRequest(ep, langId, text, position, aglOptions)
-    }
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-fun TestEd(
-    initialText: String,
-    modifier: Modifier = Modifier
-) {
-
-    println("TestEd")
-    // var inputText by remember { mutableStateOf(initialText) }
-    // var viewText by remember { mutableStateOf(initialText) }
-
-    val scope = rememberCoroutineScope()
-    val defaultTextStyle = SpanStyle(color = Color.White) //MaterialTheme.colorScheme.onBackground)
-    // val state by remember { mutableStateOf(EditorState(initialText, { _, _, _ -> })) }
-    val viewTextState by remember { mutableStateOf(TextFieldState()) }
-    val inputTextState by remember { mutableStateOf(TextFieldState()) }
-    val inputScrollState = rememberSaveable(saver = ScrollState.Saver) {
-        ScrollState(initial = 0)
-    }
-    val inputScrollerPosition = rememberSaveable(Orientation.Vertical, saver = TextFieldScrollerPosition.Saver) { TextFieldScrollerPosition(Orientation.Vertical) }
-
-//    OutlinedTextField(
-//        value = text,
-//        onValueChange = { text = it },
-//        modifier = Modifier
-//            .padding(innerPadding)
-//            .fillMaxSize(),
-//    )
-
-    Row(
-        modifier = modifier
-    ) {
-        LazyColumn(
-            modifier = Modifier
-                .width(20.dp)
-                .fillMaxHeight()
-                .background(color = Color.Yellow)
-        ) {
-            itemsIndexed(listOf(1, 2, 3)) { idx, ann ->
-                Row(
-                ) { }
+        val langReference = userFile?.readContent()?.let { content ->
+            val map = FileExtensionMap.process(content)
+            map[extension]
+        } ?: let {
+            val appFile: FileHandle? = appFileSystem.getFile("settings/file-extensions.map")
+                ?: let {
+                    logger.logError{"App settings file 'file-extensions.map' not found!"}
+                    null
+                }
+            appFile?.readContent()?.let { content ->
+                val map = FileExtensionMap.process(content)
+                map[extension]
             }
         }
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-        ) {
-            CompositionLocalProvider(
-                LocalTextSelectionColors provides TextSelectionColors(
-                    handleColor = LocalTextSelectionColors.current.handleColor,
-                    backgroundColor = Color.Red
-                )
-            ) {
-                // Visible Viewport
-                // A CoreTextField that displays the styled text
-                // just the subsection of text that is visible is formatted
-                // The 'input' CoreTextField is transparent and sits on top of this.
-                BasicTextField2(
-                    //    MyCoreTextField(
-                    cursorBrush = SolidColor(Color.Red),
-                    textStyle = TextStyle(color = Color.Red),
-                    //readOnly = false,
-                    //enabled = true,
-                    state = viewTextState,
-//                        onValueChange = {}, //{ state.viewTextValue = it },
-//                    onTextLayout = {},
-//                    onScroll = {
-//                        // update the drawn cursor position
-//                        if (it != null) {
-//                            state.viewCursorRect = it.getCursorRect(state.viewTextValue.selection.start)
-//                            val cr = state.viewCursorRect
-//                            state.viewCursors[0].update(cr.topCenter, cr.height)
-//                        }
-//                    },
-                    modifier = Modifier
-                        //                       .background(color = Color.Green)
-                        .fillMaxSize()
-                        .padding(5.dp, 5.dp)
-//                        .drawWithContent {
-//                            drawContent()
-//                            // draw the cursors
-//                            // (can't see how to make the actual cursor visible unless the control has focus)
-//                            state.viewCursors.forEach {
-//                                drawLine(
-//                                    strokeWidth = 3f,
-//                                    brush = it.brush,
-//                                    start = it.start,
-//                                    end = it.end
-//                                )
-//                            }
-//                        },
-                    //cursorBrush = SolidColor(MaterialTheme.colorScheme.onBackground),
-                )
-            }
-            CompositionLocalProvider(
-                // make selections transparent in the in
-                LocalTextSelectionColors provides TextSelectionColors(
-                    handleColor = LocalTextSelectionColors.current.handleColor,
-                    backgroundColor = Color.Transparent
-                )
-            ) {
-                BasicTextField2(
-                    cursorBrush = SolidColor(Color.Transparent),
-                    textStyle = TextStyle(color = Color.Blue),
-                    state = inputTextState,
-//                    onValueChange = {
-////                        onTextChange(it.text)
-//                        state.inputTextValue = it
-//                        //FIXME slow - workaround because getLineEnd does tno work on JS
-//                        lineEndsAt.clear()
-//                        lineEndsAt.addAll(it.text.lineEndsAt)
-//                    },
-                    onTextLayout = {
-                        //state.viewTextValue = state.viewTextValue.copy(selection = state.viewSelection)
-                        viewTextState.text
-                    },
-                    modifier = Modifier
-                        .fillMaxSize(),
-                    //                       .onPreviewKeyEvent { ev -> handlePreviewKeyEvent(ev) },
-                    //textScrollerPosition = inputScrollerPosition,
-//                    onScroll = { textLayoutResult ->
-//                        if (textLayoutResult != null) {
-//                            val st = inputScrollerPosition.offset
-//                            println("st = $st")
-//                            val len = inputScrollerPosition.viewportSize
-//                            println("len = $len")
-//                            val firstLine = textLayoutResult.MygetLineForVerticalPosition(st)
-//                            println("firstLine = $firstLine")
-//                            val lastLine = textLayoutResult.MygetLineForVerticalPosition(st + len)//-1
-//                            println("lastLine = $lastLine")
-//                            val firstPos = textLayoutResult.getLineStart(firstLine)
-//                            state.viewFirstLinePos = firstPos
-//                            val lastPos = textLayoutResult.getLineEnd(lastLine, true)
-//
-//                            //FIXME: using JS workaround
-//                            val fp = if (firstLine==0) {
-//                                0
-//                            } else {
-//                                lineEndsAt.getOrNull(firstLine-1)?.range?.last ?: -1
-//                            }
-//                            val lp = lineEndsAt.getOrNull(lastLine)?.range?.first ?: -1
-//                            println("fp/lp = [$fp-$lp]")
-//                            val viewText = state.inputTextValue.text.substring(firstPos, lastPos)
-//                            val annotated = buildAnnotatedString {
-//                                for (lineNum in firstLine..lastLine) {
-//                                    //val lineStartPos = textLayoutResult.getLineStart(lineNum)
-//                                    //val lineFinishPos = textLayoutResult.getLineEnd(lineNum)
-//                                    //FIXME: bug on JS getLineEnd does not work - workaround
-//                                    val lineStartPos = if (firstLine==0) {
-//                                        0
-//                                    } else {
-//                                        lineEndsAt.getOrNull(lineNum-1)?.range?.last ?: -1
-//                                    }
-//                                    val lineFinishPos = lineEndsAt.getOrNull(lineNum)?.range?.first ?: -1
-//                                    val lineText = state.inputTextValue.text.substring(lineStartPos, lineFinishPos)
-//                                    if (lineNum != firstLine) {
-//                                        append("\n")
-//                                    }
-//                                    append(lineText)
-//                                    addStyle(
-//                                        defaultTextStyle,
-//                                        lineStartPos - firstPos,
-//                                        lineFinishPos - firstPos
-//                                    )
-//                                    val toks = try {
-////                                        getLineTokens(lineNum, lineText)
-//                                        emptyList<EditorLineToken>()
-//                                    } catch (t: Throwable) {
-//                                        //TODO: log error!
-//                                        emptyList<EditorLineToken>()
-//                                    }
-//                                    for (tk in toks) {
-//                                        val offsetStart = tk.start - firstPos
-//                                        val offsetFinish = tk.finish - firstPos
-//                                        addStyle(tk.style, offsetStart, offsetFinish)
-//                                    }
-//                                }
-//                            }
-//                            val sel = state.inputTextValue.selection //.toView(textLayoutResult)
-//                            println("set viewTextValue [$firstPos-$lastPos], '$viewText'")
-//                            //state.viewTextValue = state.inputTextValue.copy(annotatedString = annotated, selection = sel)
-//                            state.viewTextValue = state.inputTextValue.copy(text=viewText, selection = sel)
-//                        }
-//                    }
-                )
+        when (langReference) {
+            null -> alert("There is no LanguageDefinition set for files with extension '$extension'. Using plain text.")
+            else -> {
+                val langDef = fetchLanguageDefinition(langReference)
+                when (langDef) {
+                    null -> alert("The no language definition found for '$langReference'. Using plain text.")
+                    else -> {
+                        try {
+                            aglEditor.updateLanguageDefinition(langDef)
+                        } catch (e: Exception) {
+                            alert(e.message ?: "An exception occurred")
+                        }
+                    }
+                }
             }
         }
     }
+
+    //TODO: should be in computational
+    suspend fun fetchLanguageDefinition(languageReference: String): LanguageDefinition<Any, Any>? =
+        when {
+            languageReference.startsWith("/") -> {
+                val appResourcePath = languageReference
+                val langDir = appFileSystem.getDirectory(appResourcePath)
+                langDir?.let {
+                    val langId = LanguageIdentity(languageReference.substringAfter("/").replace("/", "."))
+                    val grammarStr = it.file("grammar.agl-grm")?.readContent()?.let { GrammarString(it) }
+                    when (grammarStr) {
+                        null -> {
+                            alert("The LanguageDefinition directory '$languageReference' must include a 'grammar.agl.grm' file.")
+                            null
+                        }
+
+                        else -> {
+                            val typeDomainStr = it.file("types.agl-typ")?.readContent()?.let { TypeModelString(it) }
+                            val transformStr = it.file("transform.agl-trf")?.readContent()?.let { TransformString(it) }
+                            val referenceStr = it.file("reference.agl-ref")?.readContent()?.let { CrossReferenceString(it) }
+                            val styleStr = it.file("style.agl-sty")?.readContent()?.let { StyleString(it) }
+                            val formatStr = it.file("format.agl-fmt")?.readContent()?.let { FormatString(it) }
+                            Agl.languageDefinitionFromStringSimple(
+                                identity = langId,
+                                grammarDefinitionStr = grammarStr,
+                                typeStr = typeDomainStr,
+                                transformStr = transformStr,
+                                referenceStr = referenceStr,
+                                styleStr = styleStr,
+                                formatterModelStr = formatStr
+                            ) as LanguageDefinition<Any, Any>
+                        }
+                    }
+                }
+            }
+
+            else -> {
+                val registeredLangId = LanguageIdentity(languageReference)
+                Agl.registry.findOrNull(registeredLangId) ?: let {
+                    alert("The LanguageIdentity '$languageReference' cannot be found in the Agl.registry.")
+                    null
+                }
+            }
+        }
 }

@@ -1,10 +1,10 @@
 import org.jetbrains.kotlin.gradle.dsl.KotlinJsCompile
 
 plugins {
-    id("org.jetbrains.compose")
+    alias(libs.plugins.compose)
+    alias(libs.plugins.kotlin.compose)
 }
 
-val version_agl:String by project
 dependencies {
     commonMainApi(project(":user-inf"))
 
@@ -21,7 +21,7 @@ dependencies {
     commonMainImplementation(compose.foundation)
     commonMainImplementation(compose.material3)
 
-    jvm8MainImplementation(compose.desktop.currentOs)
+    jvm11MainImplementation(compose.desktop.currentOs)
 
     jsMainImplementation(libs.nal.agl.language.service)
     jsMainImplementation("org.jetbrains.kotlin-wrappers:kotlin-js:1.0.0-pre.690")
@@ -30,8 +30,8 @@ dependencies {
     jsMainImplementation(npm(name="@fortawesome/fontawesome-free", version="6.5.1"))
 
     //compose for js editor is not working so have to use html and codemirror instead
-    jsMainImplementation(libs.nal.agl.editor.codemirror)
-    jsMainImplementation(libs.nak.codemirror)
+    //jsMainImplementation(libs.nal.agl.editor.codemirror)
+    //jsMainImplementation(libs.nak.codemirror)
 
     //jsMainImplementation(libs.nal.agl.editor.ace)
     //jsMainImplementation(npm("ace-builds", libs.versions.ace.get()))

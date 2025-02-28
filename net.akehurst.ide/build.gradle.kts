@@ -14,21 +14,19 @@
  * limitations under the License.
  */
 
-import com.github.gmazzo.gradle.plugins.BuildConfigExtension
-import org.jetbrains.kotlin.gradle.dsl.KotlinJsCompile
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
+import com.github.gmazzo.buildconfig.BuildConfigExtension
 
 plugins {
     alias(libs.plugins.kotlin) apply false
     alias(libs.plugins.dokka) apply false
-    id("org.jetbrains.compose") version "1.6.0-beta01" apply false
-    id("com.github.gmazzo.buildconfig") version ("4.1.2") apply false
-    id("nu.studer.credentials") version ("3.0")
-//    id("net.akehurst.kotlin.gradle.plugin.exportPublic") version ("1.9.21") apply false
+    alias(libs.plugins.buildconfig) apply false
+    alias(libs.plugins.credentials) apply true
+    alias(libs.plugins.exportPublic) apply false
 }
-val kotlin_languageVersion = org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_1_9
-val kotlin_apiVersion = org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_1_9
-val jvmTargetVersion = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8
+val kotlin_languageVersion = org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_1
+val kotlin_apiVersion = org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_1
+val jvmTargetVersion = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11
 
 allprojects {
     val version_project: String by project
@@ -46,6 +44,7 @@ allprojects {
             }
         }
         mavenCentral()
+        google()
     }
 }
 
@@ -75,7 +74,7 @@ subprojects {
     }
 
     configure<KotlinMultiplatformExtension> {
-        jvm("jvm8") {
+        jvm("jvm11") {
             compilations {
                 val main by getting {
                     compilerOptions.configure {
@@ -93,13 +92,13 @@ subprojects {
                 }
             }
         }
-        js("js", IR) {
+        js {
             generateTypeScriptDefinitions()
-            useEsModules()
-            nodejs {
+            compilerOptions {
+                target.set("es2015")
             }
-            browser {
-            }
+            nodejs {}
+            browser {}
         }
 
         // compose does not support native targets !
@@ -109,11 +108,6 @@ subprojects {
         sourceSets {
             all {
                 languageSettings.optIn("kotlin.ExperimentalStdlibApi")
-            }
-        }
-        tasks.withType<KotlinJsCompile>().configureEach {
-            kotlinOptions {
-                useEsClasses = true
             }
         }
     }

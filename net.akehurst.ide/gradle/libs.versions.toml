@@ -1,33 +1,31 @@
 [versions]
-kotlin = "1.9.22"
+
+project = "2.1.0"
+
+kotlin = "2.1.0"
 dokka = "1.9.10"
+exportPublic = "2.1.0"
+buildconfig = "5.5.1"
+credentials = "3.0"
+compose = "1.8.0-alpha03"
 
-nal-agl-processor = "4.0.22"
-nal-agl-editor = "1.9.22"
+nal-agl = "4.2.1.0"
+nal-editor = "2.1.0"
+nak-compose-code-editor = "2.1.0"
 
-nak-compose-code-editor = "1.9.22"
+nak-serialisation ="2.1.0"
+nak-json = "2.1.0"
+nak-kotlinx = "2.1.0"
+nak-html-builder = "2.1.0"
 
-nak-serialisation = "1.9.22"
-nak-json = "1.9.22"
-nak-kotlinx = "1.9.22"
-nak-html-builder = "1.9.22"
-nak-codemirror = "6.0.1"
+korge = "6.0.0-beta4"
+kotlinx-coroutines = "1.9.0"
 
-korge = "5.3.1"
-
-kotlinx-coroutines = "1.8.0-RC2"
-
-ace = "1.32.3"
 
 [libraries]
-nal-agl-processor = { module = "net.akehurst.language:agl-processor", version.ref = "nal-agl-processor" }
-nal-agl-editor-compose = { module = "net.akehurst.language.editor:agl-editor-compose", version.ref = "nal-agl-editor" }
-nal-agl-language-service = { module = "net.akehurst.language.editor:agl-language-service", version.ref = "nal-agl-editor" }
-nal-agl-editor-codemirror = { module = "net.akehurst.language.editor:agl-editor-browser-codemirror", version.ref = "nal-agl-editor" }
-nal-agl-editor-ace = { module = "net.akehurst.language.editor:agl-editor-browser-ace", version.ref = "nal-agl-editor" }
-
-nak-codemirror  = { module = "net.akehurst.kotlin:codemirror-api-realisation", version.ref = "nak-codemirror" }
-
+nal-agl-processor = { module = "net.akehurst.language:agl-processor", version.ref = "nal-agl" }
+nal-agl-editor-compose = { module = "net.akehurst.language.editor:agl-editor-compose", version.ref = "nal-editor" }
+nal-agl-language-service = { module = "net.akehurst.language.editor:agl-language-service", version.ref = "nal-editor" }
 
 nak-compose-code-editor = { module = "net.akehurst.kotlin.compose:code-editor", version.ref = "nak-compose-code-editor" }
 
@@ -47,3 +45,9 @@ kotlinx-coroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core",
 [plugins]
 kotlin = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
+exportPublic =  { id = "net.akehurst.kotlin.gradle.plugin.exportPublic", version.ref = "exportPublic" }
+buildconfig =  { id = "com.github.gmazzo.buildconfig", version.ref = "buildconfig" }
+credentials =  { id = "nu.studer.credentials", version.ref = "credentials" }
+
+compose = { id="org.jetbrains.compose", version.ref="compose" }
+kotlin-compose = { id="org.jetbrains.kotlin.plugin.compose", version.ref="kotlin" }

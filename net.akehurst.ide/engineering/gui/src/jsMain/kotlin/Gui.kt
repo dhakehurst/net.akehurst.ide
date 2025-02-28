@@ -5,7 +5,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.window.CanvasBasedWindow
-import net.akehurst.language.editor.api.AglEditorLogger
+import net.akehurst.language.editor.api.LanguageService
+import net.akehurst.language.editor.api.LogFunction
 import net.akehurst.language.editor.api.LogLevel
 import net.akehurst.language.editor.language.service.AglLanguageServiceByWorker
 import org.jetbrains.skiko.wasm.onWasmReady
@@ -19,27 +20,27 @@ external var resourcesPath: String = definedExternally
 
 actual class Gui : GuiAbstract() {
 
-    override val logger = AglEditorLogger { logLevel: LogLevel, msg: String, t: Throwable? ->
+    actual override val logFunction: LogFunction = { logLevel, prefix, msg, t ->
         when {
-            logLevel <= LogLevel.Information -> { //LogLevel.Information -> {
-                console.log("$logLevel: $msg")
+            logLevel <= LogLevel.All -> { //LogLevel.Information -> {
+                console.log("$logLevel: $prefix - $msg")
                 t?.let { console.log("$logLevel: $t") }
             }
         }
     }
 
-    override val appFileSystem = AppFileSystem(resourcesPath)
+    actual override val appFileSystem: AppFilesystem = FileSystemFromPath(resourcesPath)
 
     val workerScriptName = "${aglScriptBasePath}/js-worker.js"
-    override val languageService = AglLanguageServiceByWorker(
+    actual override val languageService: LanguageService = AglLanguageServiceByWorker(
         SharedWorker(workerScriptName, options = WorkerOptions(type = WorkerType.MODULE)),
-        logger
+        logFunction
     )
 
     override suspend fun start() = start_html()
 
     suspend fun start_html() {
-        HtmlGui(this, logger, languageService).start()
+        HtmlGui(this, logFunction, languageService).start()
         super.start()
     }
 
@@ -53,10 +54,6 @@ actual class Gui : GuiAbstract() {
                 }
             }
         }
-    }
-
-    override fun lineTokens(lineStart: Int, tokens: List<List<Any>>) {
-
     }
 
 }

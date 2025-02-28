@@ -13,7 +13,7 @@ import androidx.compose.ui.Modifier
 data class TreeNode(
     val label: String,
     val children: List<TreeNode>,
-    val data:Map<String,Any> = mapOf()
+    val data:Map<String,Any?> = mapOf()
 )
 
 @Composable

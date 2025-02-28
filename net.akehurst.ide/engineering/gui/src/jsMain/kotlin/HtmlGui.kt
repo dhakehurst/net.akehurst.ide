@@ -1,29 +1,14 @@
 package net.akehurst.ide.gui
 
-import codemirror.extensions.autocomplete.autocompletion
-import codemirror.extensions.commands.defaultKeymap
-import codemirror.extensions.commands.history
-import codemirror.extensions.commands.historyKeymap
-import codemirror.extensions.commands.indentWithTab
-import codemirror.extensions.language.bracketMatching
-import codemirror.extensions.language.foldGutter
-import codemirror.extensions.search.highlightSelectionMatches
-import codemirror.extensions.search.searchKeymap
-import codemirror.extensions.view.*
-import codemirror.view.EditorViewConfig
 import kotlinx.browser.document
 import kotlinx.browser.window
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import net.akehurst.kotlin.html5.create
+import net.akehurst.kotlin.html5.elCreate
 import net.akehurst.kotlin.html5.widgets.TreeView
 import net.akehurst.kotlin.html5.widgets.TreeViewFunctions
-import net.akehurst.language.agl.processor.Agl
 import net.akehurst.language.editor.api.*
-import net.akehurst.language.editor.browser.codemirror.attachToCodeMirror
-import net.akehurst.language.editor.common.objectJS
-import net.akehurst.language.editor.common.objectJSTyped
-import org.w3c.dom.HTMLDivElement
+import net.akehurst.language.editor.common.EditorOptionsDefault
 import org.w3c.dom.HTMLElement
 import kotlin.coroutines.coroutineContext
 
@@ -33,7 +18,7 @@ external val FontAwesome: dynamic
 
 class HtmlGui(
     val gui: Gui,
-    val logger: AglEditorLogger,
+    val logFunction: LogFunction,
     val languageService: LanguageService,
 ) {
 
@@ -59,9 +44,7 @@ Or use the side bar to open a local folder and edit *.sysml files.
             appDiv.removeChild(appDiv.firstChild!!)
         }
 
-        val logFunction: LogFunction = { lvl, msg, t -> logger.log(lvl, msg, t) }
-
-        appDiv.create().article {
+        appDiv.elCreate().article {
             header {
                 button {
                     icon("fa-solid fa-bars")
@@ -91,13 +74,13 @@ Or use the side bar to open a local folder and edit *.sysml files.
                                     scope.launch {
                                         // save existing file before opening new one, TODO: check for 'dirty'
                                         gui.openFilePath?.writeContent(gui.aglEditor.text)
-                                        gui.actionNewFile(it) { newFile ->
-                                            gui.actionSelectFile(newFile) {
-                                                gui.aglEditor.text = it
-                                                gui.openFilePath = newFile
-                                                projectTree.refresh()
-                                            }
-                                        }
+//                                        gui.actionNewFile(it) { newFile ->
+//                                            gui.actionSelectFile(newFile) {
+//                                                gui.aglEditor.text = it
+//                                                gui.openFilePath = newFile
+//                                                projectTree.refresh()
+//                                            }
+//                                        }
                                     }
                                 }
                             }
@@ -119,10 +102,10 @@ Or use the side bar to open a local folder and edit *.sysml files.
                                     is FileHandle -> {
                                         // save existing file before opening new one, TODO: check for 'dirty'
                                         gui.openFilePath?.writeContent(gui.aglEditor.text)
-                                        gui.actionSelectFile(file) {
-                                            gui.aglEditor.text = it
-                                            gui.openFilePath = file
-                                        }
+//                                        gui.actionSelectFile(file) {
+//                                            gui.aglEditor.text = it
+//                                            gui.openFilePath = file
+//                                        }
                                     }
 
                                     else -> Unit
@@ -138,10 +121,6 @@ Or use the side bar to open a local folder and edit *.sysml files.
             }
         }
 
-        val editorElement = document.querySelector("div#$EDITOR_DIV_ID") as HTMLDivElement
-        gui.aglEditor = createCodeMirror(editorElement, logFunction, languageService)
-        //gui.aglEditor = createAce(editorElement, logFunction, languageService)
-
         gui.aglEditor.editorOptions = EditorOptionsDefault(
             parse = true,
             parseLineTokens = true,
@@ -152,17 +131,9 @@ Or use the side bar to open a local folder and edit *.sysml files.
             semanticAnalysis = true,
             semanticAnalysisAsm = false
         )
-        gui.aglEditor.onTextChange {
-            // if save not scheduled, schedule save in 5 seconds
-            if (doSaveTimeout == null) {
-                doSaveTimeout = window.setTimeout({
-                    scope.launch { gui.openFilePath?.writeContent(gui.aglEditor.text) }
-                    doSaveTimeout = null
-                }, 5000)
-            }
-        }
     }
 
+    /*
     fun createCodeMirror(editorElement: HTMLDivElement, logFunction: LogFunction, languageService: LanguageService): AglEditor<Any,Any> {
         val editorId = editorElement.id
         val languageId = gui.langId
@@ -201,6 +172,7 @@ Or use the side bar to open a local folder and edit *.sysml files.
             codemirror = codemirror.CodeMirror
         )
     }
+     */
 
     /*
     fun createAce(editorElement: HTMLDivElement, logFunction: LogFunction, languageService: LanguageService): AglEditor<Any, Any> {

@@ -61,7 +61,7 @@ object AppTheme {
 
         val dark: ColorScheme = darkColorScheme(
             background = backgroundDark,
-            surface = backgroundLight,
+       //     surface = backgroundLight,
             primary = primary,
             secondary = secondary,
             onBackground = codeColor,
@@ -70,11 +70,11 @@ object AppTheme {
 
         val light: ColorScheme = lightColorScheme(
             background = backgroundLight,
-            surface = backgroundDark,
-            primary = primary,
-            secondary = secondary,
-            onBackground = codeColor,
-            onSurface = textColor
+        //    surface = backgroundDark,
+        //    primary = primary,
+        //    secondary = secondary,
+        //    onBackground = codeColor,
+        //    onSurface = textColor
         )
     )
 
