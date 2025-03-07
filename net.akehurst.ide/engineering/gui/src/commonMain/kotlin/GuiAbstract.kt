@@ -8,10 +8,12 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.KeyEvent
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.CoroutineScope
@@ -31,6 +33,7 @@ import net.akehurst.language.editor.api.LanguageService
 import net.akehurst.language.editor.api.LogFunction
 import net.akehurst.language.editor.common.aglEditorOptions
 import net.akehurst.language.editor.compose.attachToComposeEditor
+import net.akehurst.language.issues.api.LanguageIssueKind
 import kotlin.coroutines.coroutineContext
 
 expect class Gui() : GuiAbstract {
@@ -82,7 +85,7 @@ abstract class GuiAbstract : User {
             logFunction,
             composeableEditor
         ).also {
-            logger.logTrace {"Agl attachToComposeEditor finished"}
+            logger.logTrace { "Agl attachToComposeEditor finished" }
         } as AglEditor<Any, Any>
     }
 
@@ -111,20 +114,29 @@ abstract class GuiAbstract : User {
         )
         */
         aglEditor.onTextChange {
-            guiState.selectedFileIsDirty = true
+            guiState.selectedFile?.isDirty = true
             // if save not scheduled, schedule save in 5 seconds
             if (doSaveScheduled.not()) {
                 doSaveScheduled = true
                 scope.launch {
                     delay(5000)
-                    guiState.selectedFile?.writeContent(aglEditor.text)
-                    guiState.selectedFileIsDirty = false
+                    guiState.selectedFile?.fileHandle?.writeContent(aglEditor.text)
+                    guiState.selectedFile?.isDirty = false
                     doSaveScheduled = false
                 }
             }
         }
 
-        logger.logTrace{"GUI start finished"}
+        aglEditor.onIssues {
+            when {
+                aglEditor.issues.errors.isNotEmpty() -> guiState.selectedFile?.issueMarker = LanguageIssueKind.ERROR
+                aglEditor.issues.warnings.isNotEmpty() -> guiState.selectedFile?.issueMarker = LanguageIssueKind.WARNING
+                aglEditor.issues.informations.isNotEmpty() -> guiState.selectedFile?.issueMarker = LanguageIssueKind.INFORMATION
+                else -> guiState.selectedFile?.issueMarker = null
+            }
+        }
+
+        logger.logTrace { "GUI start finished" }
     }
 
     @OptIn(ExperimentalMaterial3Api::class)
@@ -152,34 +164,32 @@ abstract class GuiAbstract : User {
                 drawerContent = {
                     ModalDrawerSheet {
                         NavigationDrawerItem(
-                            label = {
-                                Column {
-                                    Text(text = "Open Project Folder")
-                                    Text(
-                                        text = "New File", modifier = Modifier.clickable(
-                                            onClick = {
-                                                scope.launch {
-                                                    state.openProjectDirectory?.let {
-                                                        actionNewFile(it)
-                                                        refreshTreeView(it, treeState)
-                                                    }
-                                                }
-                                            }
-                                        ))
-                                }
-                            },
+                            label = { Text(text = "Open Project Folder") },
                             selected = false,
                             icon = {
                                 Icon(
-                                    imageVector = Icons.Outlined.Edit,
+                                    imageVector = Icons.Outlined.Home,
                                     contentDescription = "Open Project Folder"
                                 )
                             },
                             onClick = {
                                 scope.launch {
                                     actionOpenProject() {
-                                        refreshTreeView(it, treeState)
                                         state.openProjectDirectory = it
+                                        refreshTreeView(it, treeState)
+                                    }
+                                }
+                            }
+                        )
+                        NavigationDrawerItem(
+                            label = { Text(text = "New File") },
+                            selected = false,
+                            icon = { Icon(imageVector = Icons.Outlined.Edit, contentDescription = "New File") },
+                            onClick = {
+                                scope.launch {
+                                    state.openProjectDirectory?.let {
+                                        actionNewFile(it)
+                                        refreshTreeView(it, treeState)
                                     }
                                 }
                             }
@@ -211,7 +221,7 @@ abstract class GuiAbstract : User {
                     topBar = {
                         TopAppBar(
                             title = {
-                                Text(text = "SysML v2")
+                                Text(text = "Agl Editor")
                             },
                             navigationIcon = {
                                 IconButton(onClick = {
@@ -257,7 +267,7 @@ abstract class GuiAbstract : User {
                         PrimaryScrollableTabRow(
                             selectedTabIndex = selectedTab,
                             modifier = Modifier
-                                .border(width = 1.dp, color = MaterialTheme.colorScheme.onBackground)
+                                .border(width = Dp.Hairline, color = MaterialTheme.colorScheme.onBackground)
                                 .height(30.dp)
                                 .fillMaxWidth()
                         ) {
@@ -267,21 +277,27 @@ abstract class GuiAbstract : User {
                                         selected = true,
                                         onClick = { },
                                         text = { Text(text = "<no file>") },
+                                        modifier = Modifier
+                                            .border(width = Dp.Hairline, color = MaterialTheme.colorScheme.onBackground)
+                                            .padding(10.dp),
                                     )
                                 }
 
-                                else -> state.openFiles.forEachIndexed { idx, fileHandle ->
+                                else -> state.openFiles.forEachIndexed { idx, tab ->
                                     Tab(
                                         selected = selectedTab == idx,
                                         onClick = {
                                             selectedTab = idx
-                                            scope.launch { selectTab(idx, fileHandle) }
+                                            scope.launch { selectTab(idx, tab.fileHandle) }
                                         },
                                         content = {
-                                            tabContent(text = fileHandle.name, isDirty = state.selectedFileIsDirty, onClose = {
-                                                scope.launch { closeTab(idx, fileHandle) }
+                                            tabContent(text = tab.fileHandle.name, isDirty = tab.isDirty, issueMarker = tab.issueMarker, onClose = {
+                                                scope.launch { closeTab(idx, tab.fileHandle) }
                                             })
                                         },
+                                        modifier = Modifier
+                                            .border(width = Dp.Hairline, color = MaterialTheme.colorScheme.onBackground)
+                                            .padding(10.dp),
                                     )
                                 }
                             }
@@ -336,26 +352,27 @@ abstract class GuiAbstract : User {
     }
 
     fun alert(message: String) {
-        logger.logError{message}
+        logger.logError { message }
         //TODO
     }
 
     suspend fun actionOpenProject(action: suspend (projectDir: DirectoryHandle) -> Unit) {
-        logger.logTrace{"actionOpenProject"}
+        logger.logTrace { "actionOpenProject" }
         val projectDir = selectProjectDirectoryFromDialog()
         projectDir?.let { action.invoke(it) }
-        logger.logTrace{"actionOpenProject finished"}
+        logger.logTrace { "actionOpenProject finished" }
     }
 
     suspend fun actionSelectFile(fileHandle: FileHandle) {
-        logger.logTrace{"actionSelectFile ${fileHandle.name}"}
+        logger.logTrace { "actionSelectFile ${fileHandle.name}" }
         fileHandle.readContent()?.let {
             setLanguageForExtension(fileHandle.extension)
             composeableEditor.rawText = it
-            guiState.selectedFile = fileHandle
-            guiState.openFiles.add(fileHandle)
+            val ts = guiState.openFiles.firstOrNull { it.fileHandle == fileHandle } ?: OpenTabState(fileHandle)
+            guiState.openFiles.add(ts)
+            guiState.selectedFile = ts
         }
-        logger.logTrace{"actionSelectFile finished"}
+        logger.logTrace { "actionSelectFile finished" }
     }
 
     suspend fun actionNewFile(parentDirectory: DirectoryHandle): FileHandle? {
@@ -379,15 +396,21 @@ abstract class GuiAbstract : User {
         fileHandle.readContent()?.let {
             setLanguageForExtension(fileHandle.extension)
             composeableEditor.rawText = it
-            guiState.selectedFile = fileHandle
+            guiState.selectedFile = guiState.openFiles.firstOrNull { it.fileHandle == fileHandle }
         }
     }
 
     suspend fun closeTab(tabIndex: Int, fileHandle: FileHandle) {
-        guiState.openFiles.remove(fileHandle)
+        val ts = guiState.openFiles.firstOrNull { it.fileHandle == fileHandle }
+        guiState.openFiles.remove(ts)
         when {
+            guiState.openFiles.isEmpty() -> {
+                setLanguageForExtension("")
+                composeableEditor.rawText = ""
+                guiState.selectedFile = null
+            }
             guiState.openFiles.size > tabIndex -> {
-
+                actionSelectFile(guiState.openFiles.first().fileHandle)
             }
         }
     }
@@ -403,7 +426,7 @@ abstract class GuiAbstract : User {
         } ?: let {
             val appFile: FileHandle? = appFileSystem.getFile("settings/file-extensions.map")
                 ?: let {
-                    logger.logError{"App settings file 'file-extensions.map' not found!"}
+                    logger.logError { "App settings file 'file-extensions.map' not found!" }
                     null
                 }
             appFile?.readContent()?.let { content ->
@@ -419,7 +442,14 @@ abstract class GuiAbstract : User {
                     null -> alert("The no language definition found for '$langReference'. Using plain text.")
                     else -> {
                         try {
-                            aglEditor.updateLanguageDefinition(langDef)
+                            //aglEditor.updateLanguageDefinition(langDef)
+                            aglEditor.updateLanguageDefinitionWith(
+                                grammarStr = langDef.grammarStr,
+                                typeModelStr = langDef.typeModelStr,
+                                asmTransformStr = langDef.asmTransformStr,
+                                crossReferenceStr = langDef.crossReferenceStr,
+                                styleStr = langDef.styleStr
+                            )
                         } catch (e: Exception) {
                             alert(e.message ?: "An exception occurred")
                         }

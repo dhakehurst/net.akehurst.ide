@@ -1,27 +1,17 @@
 package net.akehurst.ide.gui
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.onClick
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Close
+import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
+import net.akehurst.language.editor.compose.EditorIcons
+import net.akehurst.language.issues.api.LanguageIssueKind
 
 object GuiIcons {
 
@@ -127,10 +117,33 @@ object GuiIcons {
 
 
 @Composable
-fun ColumnScope.tabContent(text: String, isDirty: Boolean, onClose: () -> Unit) {
+fun ColumnScope.tabContent(text: String, isDirty: Boolean, issueMarker: LanguageIssueKind?, onClose: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth(),
     ) {
+        when (issueMarker) {
+            null -> Spacer(Modifier.width(15.dp))
+            LanguageIssueKind.INFORMATION -> Icon(
+                imageVector = EditorIcons.Information,
+                contentDescription = null,
+                tint = Color.Blue,
+                modifier = Modifier.size(15.dp)
+            )
+
+            LanguageIssueKind.WARNING -> Icon(
+                imageVector = EditorIcons.Warning,
+                contentDescription = null,
+                tint = EditorIcons.ORANGE,
+                modifier = Modifier.size(15.dp)
+            )
+
+            LanguageIssueKind.ERROR -> Icon(
+                imageVector = EditorIcons.Error,
+                contentDescription = null,
+                tint = Color.Red,
+                modifier = Modifier.size(15.dp)
+            )
+        }
         Text(
             text = text,
             modifier = Modifier
