@@ -1,25 +1,25 @@
 [versions]
 
-project = "2.1.0"
+project = "2.1.20-RC2"
 
-kotlin = "2.1.0"
-dokka = "1.9.10"
-exportPublic = "2.1.0"
+kotlin = "2.1.20-RC2"
+dokka = "2.0.0"
+exportPublic = "2.1.20-RC2"
 buildconfig = "5.5.1"
 credentials = "3.0"
-compose = "1.8.0-alpha03"
+compose = "1.8.0-alpha04"
 
-nal-agl = "4.2.1.0"
-nal-editor = "2.1.0"
-nak-compose-code-editor = "2.1.0"
+nal-agl = "4.2.1.20-RC2"
+nal-editor = "2.1.20-RC2"
+nak-compose-code-editor = "2.1.20-RC2"
 
-nak-serialisation ="2.1.0"
-nak-json = "2.1.0"
-nak-kotlinx = "2.1.0"
-nak-html-builder = "2.1.0"
+nak-serialisation ="2.1.20-RC2"
+nak-json = "2.1.20-RC2"
+nak-kotlinx = "2.1.20-RC2"
+nak-html-builder = "2.1.20-RC2"
 
 korge = "6.0.0-beta4"
-kotlinx-coroutines = "1.9.0"
+kotlinx-coroutines = "1.10.1"
 
 
 [libraries]
