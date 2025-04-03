@@ -12,7 +12,7 @@ import kotlin.js.Promise
 data class DirectoryHandleJS(
     val fileSystem: UserFileSystem,
     val handle: FileSystemDirectoryHandle
-) : DirectoryHandle {
+) : DirectoryHandleAbstract() {
 
     override val path: String get() = TODO()
 

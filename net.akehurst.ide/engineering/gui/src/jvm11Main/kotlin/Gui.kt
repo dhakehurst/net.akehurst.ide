@@ -1,16 +1,13 @@
 package net.akehurst.ide.gui
 
 import androidx.compose.ui.window.singleWindowApplication
-import korlibs.io.file.std.applicationVfs
 import korlibs.io.file.std.jailedLocalVfs
-import korlibs.io.file.std.localVfs
 import korlibs.io.file.std.resourcesVfs
 import korlibs.io.file.std.userHomeVfs
 import net.akehurst.language.editor.api.LanguageService
 import net.akehurst.language.editor.api.LogFunction
 import net.akehurst.language.editor.api.LogLevel
 import net.akehurst.language.editor.common.LanguageServiceByJvmThread
-import java.awt.EventQueue
 import java.util.concurrent.Executors
 
 actual class Gui : GuiAbstract() {

@@ -77,17 +77,21 @@ subprojects {
         jvm("jvm11") {
             compilations {
                 val main by getting {
-                    compilerOptions.configure {
-                        languageVersion.set(kotlin_languageVersion)
-                        apiVersion.set(kotlin_apiVersion)
-                        jvmTarget.set(jvmTargetVersion)
+                    compileTaskProvider.configure {
+                        compilerOptions {
+                            languageVersion.set(kotlin_languageVersion)
+                            apiVersion.set(kotlin_apiVersion)
+                            jvmTarget.set(jvmTargetVersion)
+                        }
                     }
                 }
                 val test by getting {
-                    compilerOptions.configure {
-                        languageVersion.set(kotlin_languageVersion)
-                        apiVersion.set(kotlin_apiVersion)
-                        jvmTarget.set(jvmTargetVersion)
+                    compileTaskProvider.configure {
+                        compilerOptions {
+                            languageVersion.set(kotlin_languageVersion)
+                            apiVersion.set(kotlin_apiVersion)
+                            jvmTarget.set(jvmTargetVersion)
+                        }
                     }
                 }
             }

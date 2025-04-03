@@ -1,7 +1,6 @@
 package net.akehurst.ide.gui
 
 
-import korlibs.render.awt.visible
 import java.awt.EventQueue
 import java.io.File
 import javax.swing.JFileChooser
@@ -93,7 +92,7 @@ actual object UserFileSystem {
         System.setProperty("apple.awt.fileDialogForDirectories", "true")
         val fd = java.awt.FileDialog(parentFrame, "Choose directory")
         fd.directory = selected
-        fd.visible = true
+        fd.isVisible = true
         val selectedFile = fd.file?.let{ File(fd.directory+"/"+it) }
         return selectedFile?.let { DirectoryHandleJVM(this, it) }
     }

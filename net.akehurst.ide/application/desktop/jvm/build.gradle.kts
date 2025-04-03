@@ -2,9 +2,8 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 
 dependencies {
     commonMainImplementation(project(":common"))
-
-
 }
+
 kotlin {
 
     jvm("jvm11") {

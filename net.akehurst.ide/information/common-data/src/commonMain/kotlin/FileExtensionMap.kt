@@ -51,13 +51,11 @@ object FileExtensionMap {
         val res = Agl.processorFromString<List<MapStringString>, ContextAsmSimple>(
             grammarDefinitionStr = grammar,
             configuration = Agl.configuration<List<MapStringString>, ContextAsmSimple>(base = Agl.configurationBase()) {
-                asmTransformResolver { p ->
-                    TransformDomainDefault.fromString(ContextFromGrammarAndTypeModel(p.grammarModel!!, p.baseTypeModel), TransformString(asmTransform))
-                }
+                transformString(TransformString(asmTransform))
                 syntaxAnalyserResolver { p ->
                     ProcessResultDefault(
                         FileExtensionMapSyntaxAnalyser(
-                            p.typeModel,
+                            p.typesModel,
                             p.asmTransformModel,
                             p.targetAsmTransformRuleSet.qualifiedName
                         ),

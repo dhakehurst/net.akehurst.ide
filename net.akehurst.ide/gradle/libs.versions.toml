@@ -1,46 +1,34 @@
 [versions]
 
-project = "2.1.20-RC2"
+project = "2.1.20-SNAPSHOT"
 
-kotlin = "2.1.20-RC2"
+kotlin = "2.1.20"
 dokka = "2.0.0"
-exportPublic = "2.1.20-RC2"
+exportPublic = "2.1.20"
 buildconfig = "5.5.1"
 credentials = "3.0"
-compose = "1.8.0-alpha04"
+compose = "1.8.0-beta01"
 
-nal-agl = "4.2.1.20-RC2"
-nal-editor = "2.1.20-RC2"
-nak-compose-code-editor = "2.1.20-RC2"
+nal-agl = "4.2.1.20-SNAPSHOT"
+nal-editor = "2.1.20-SNAPSHOT"
+nak-compose-code-editor = "2.1.20-SNAPSHOT"
+nak-html-builder = "2.1.20"
 
-nak-serialisation ="2.1.20-RC2"
-nak-json = "2.1.20-RC2"
-nak-kotlinx = "2.1.20-RC2"
-nak-html-builder = "2.1.20-RC2"
-
+korlibs = "6.0.1"
 korge = "6.0.0-beta4"
 kotlinx-coroutines = "1.10.1"
-
 
 [libraries]
 nal-agl-processor = { module = "net.akehurst.language:agl-processor", version.ref = "nal-agl" }
 nal-agl-editor-compose = { module = "net.akehurst.language.editor:agl-editor-compose", version.ref = "nal-editor" }
 nal-agl-language-service = { module = "net.akehurst.language.editor:agl-language-service", version.ref = "nal-editor" }
-
 nak-compose-code-editor = { module = "net.akehurst.kotlin.compose:code-editor", version.ref = "nak-compose-code-editor" }
-
-nak-serialisation-json = { module = "net.akehurst.kotlin.kserialisation:kserialisation-json", version.ref = "nak-serialisation" }
-nak-json = { module = "net.akehurst.kotlin.json:json", version.ref = "nak-json" }
-nak-kotlinx-collections = { module = "net.akehurst.kotlinx:kotlinx-collections", version.ref = "nak-kotlinx" }
-nak-kotlinx-reflect = { module = "net.akehurst.kotlinx:kotlinx-reflect", version.ref = "nak-kotlinx" }
 nak-html-builder = { module = "net.akehurst.kotlin.html5:html-builder", version.ref = "nak-html-builder" }
 
-
-
 korge-core = { module = "com.soywiz.korge:korge-core", version.ref = "korge" }
+korlibs-korio = { module = "com.soywiz:korlibs-io", version.ref = "korlibs" }
 
 kotlinx-coroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
-
 
 [plugins]
 kotlin = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }

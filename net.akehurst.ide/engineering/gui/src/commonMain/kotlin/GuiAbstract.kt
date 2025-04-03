@@ -76,17 +76,18 @@ abstract class GuiAbstract : User {
     abstract val languageService: LanguageService
 
     val composeableEditor = ComposableCodeEditor2()
-    val aglEditor: AglEditor<Any, Any> by lazy {
+    val aglEditor: AglEditor<Any, ContextAsmSimple> by lazy {
         Agl.attachToComposeEditor<Asm, ContextAsmSimple>(
             languageService,
             languageDefinition,
+            { Agl.options {  } },
             editorId,
             editorOptions,
             logFunction,
             composeableEditor
         ).also {
             logger.logTrace { "Agl attachToComposeEditor finished" }
-        } as AglEditor<Any, Any>
+        } as AglEditor<Any, ContextAsmSimple>
     }
 
     val guiState = GuiState()
@@ -155,7 +156,7 @@ abstract class GuiAbstract : User {
         }
         var selectedTab by remember { mutableStateOf(0) }
 
-        return MaterialTheme(
+        MaterialTheme(
             colorScheme = AppTheme.colors.light,
             typography = AppTheme.typography.material
         ) {
@@ -444,11 +445,11 @@ abstract class GuiAbstract : User {
                         try {
                             //aglEditor.updateLanguageDefinition(langDef)
                             aglEditor.updateLanguageDefinitionWith(
-                                grammarStr = langDef.grammarStr,
-                                typeModelStr = langDef.typeModelStr,
-                                asmTransformStr = langDef.asmTransformStr,
-                                crossReferenceStr = langDef.crossReferenceStr,
-                                styleStr = langDef.styleStr
+                                grammarStr = langDef.grammarString,
+                                typeModelStr = langDef.typesString,
+                                asmTransformStr = langDef.transformString,
+                                crossReferenceStr = langDef.crossReferenceString,
+                                styleStr = langDef.styleString
                             )
                         } catch (e: Exception) {
                             alert(e.message ?: "An exception occurred")
@@ -475,7 +476,7 @@ abstract class GuiAbstract : User {
                         }
 
                         else -> {
-                            val typeDomainStr = it.file("types.agl-typ")?.readContent()?.let { TypeModelString(it) }
+                            val typeDomainStr = it.file("types.agl-typ")?.readContent()?.let { TypesString(it) }
                             val transformStr = it.file("transform.agl-trf")?.readContent()?.let { TransformString(it) }
                             val referenceStr = it.file("reference.agl-ref")?.readContent()?.let { CrossReferenceString(it) }
                             val styleStr = it.file("style.agl-sty")?.readContent()?.let { StyleString(it) }
