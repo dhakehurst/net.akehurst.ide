@@ -1,5 +1,5 @@
 package net.akehurst.ide.gui
-
+/*
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.ExperimentalComposeUiApi
@@ -57,3 +57,5 @@ actual class Gui : GuiAbstract() {
     }
 
 }
+
+ */

@@ -1,7 +1,13 @@
-agl-grm : net.akehurst.language.Grammar
-agl-typ : net.akehurst.language.TypeModel
-agl-trf : net.akehurst.language.AsmTransform
-agl-ref : net.akehurst.language.CrossReferences
-agl-sty : net.akehurst.language.Style
-agl-fmt : net.akehurst.language.Format
+*.agl-grm : net.akehurst.language.Grammar ;
+grammar.agl : net.akehurst.language.Grammar ;
+*.agl-typ : net.akehurst.language.TypeModel ;
+types.agl : net.akehurst.language.TypeModel ;
+*.agl-trf : net.akehurst.language.AsmTransform ;
+transform.agl : net.akehurst.language.AsmTransform ;
+*.agl-ref : net.akehurst.language.CrossReferences ;
+reference.agl : net.akehurst.language.CrossReferences ;
+*.agl-sty : net.akehurst.language.Style ;
+style.agl : net.akehurst.language.Style ;
+*.agl-fmt : net.akehurst.language.Format ;
+format.agl : net.akehurst.language.Format ;
 

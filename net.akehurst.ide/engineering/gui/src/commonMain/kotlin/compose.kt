@@ -115,7 +115,6 @@ object GuiIcons {
 
 }
 
-
 @Composable
 fun ColumnScope.tabContent(text: String, isDirty: Boolean, issueMarker: LanguageIssueKind?, onClose: () -> Unit) {
     Row(

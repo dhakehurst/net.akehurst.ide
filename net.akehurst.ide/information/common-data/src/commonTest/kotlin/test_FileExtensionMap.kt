@@ -1,9 +1,7 @@
 package net.akehurst.ide.common.data.fileextensionmap
 
-import net.akehurst.language.api.processor.LanguageDefinition
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 class test_FileExtensionMap {
 

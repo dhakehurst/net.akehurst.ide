@@ -1,5 +1,5 @@
 package net.akehurst.ide.gui
-
+/*
 import kotlinx.browser.document
 import kotlinx.browser.window
 import kotlinx.coroutines.CoroutineScope
@@ -220,3 +220,4 @@ Or use the side bar to open a local folder and edit *.sysml files.
     }
 
 }
+ */

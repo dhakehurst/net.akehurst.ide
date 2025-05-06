@@ -2,10 +2,9 @@ package net.akehurst.ide.common.data.fileextensionmap
 
 import net.akehurst.language.agl.Agl
 import net.akehurst.language.agl.expressions.processor.ObjectGraphByReflection
-import net.akehurst.language.agl.expressions.processor.TypedObjectByReflection
+import net.akehurst.language.agl.expressions.processor.TypedObjectAny
 import net.akehurst.language.agl.processor.ProcessResultDefault
 import net.akehurst.language.agl.simple.ContextAsmSimple
-import net.akehurst.language.agl.simple.ContextFromGrammarAndTypeModel
 import net.akehurst.language.agl.syntaxAnalyser.SyntaxAnalyserFromAsmTransformAbstract
 import net.akehurst.language.api.processor.LanguageProcessor
 import net.akehurst.language.api.processor.TransformString
@@ -16,25 +15,24 @@ import net.akehurst.language.expressions.processor.TypedObject
 import net.akehurst.language.issues.api.LanguageProcessorPhase
 import net.akehurst.language.issues.ram.IssueHolder
 import net.akehurst.language.transform.api.TransformModel
-import net.akehurst.language.transform.asm.TransformDomainDefault
 import net.akehurst.language.typemodel.api.TypeModel
 import net.akehurst.language.typemodel.asm.StdLibDefault
 
 object FileExtensionMap {
     val grammar = """
-        namespace ide
-        grammar FileExtensionMap {
-            skip leaf WS = "\s+" ;
-            
-            unit = entry* ;
-            entry = EXT ':' value ;
-            value = PATH | QUALIFIED_NAME ;
-            leaf EXT = ID ;
-            QUALIFIED_NAME =  [ID / '.']+ ;
-            PATH = '/' [ID / '/']+ ;
-            leaf ID = "[a-zA-Z._][a-zA-Z0-9._-]+" ;
-        }
-    """
+            namespace ide
+            grammar FileExtensionMap {
+                skip leaf WS = "\s+" ;
+                
+                unit = entry* ;
+                entry = GLOB ':' value ';' ;
+                value = PATH | QUALIFIED_NAME ;
+                leaf GLOB = "([a-zA-Z0-9_*/.?{},\[\]-]|\\.)+" ;
+                QUALIFIED_NAME = [ID / '.']+ ;
+                PATH = '/' [ID / '/']+ ;
+                leaf ID = "[a-zA-Z._][a-zA-Z0-9._-]*" ;
+            }
+        """
     val asmTransform = """
         #create-missing-types
         #override-default-transform
@@ -43,8 +41,8 @@ object FileExtensionMap {
         transform FileExtensionMap {
            unit : children.asMap as Map<String,String>
            entry : tuple { key:=child[0] value:=child[2] }
-           PATH: (child[0] + child[1].children.elements.join) as String
-           QUALIFIED_NAME: children.elements.join as String
+           PATH: (child[0] + child[1].children.join) as String
+           QUALIFIED_NAME: children.join as String
         }
     """
     val processor: LanguageProcessor<List<MapStringString>, ContextAsmSimple> by lazy {
@@ -81,7 +79,7 @@ typealias MapStringString = MutableMap<String, String>
 class FileExtensionMapFactory(
     typeModel: TypeModel,
     issues: IssueHolder,
-) : AsmFactory<List<MapStringString>, Any>, ObjectGraphByReflection(typeModel, issues) {
+) : AsmFactory<List<MapStringString>, Any>, ObjectGraphByReflection<Any>(typeModel, issues) {
 
     override fun constructAsm() = mutableListOf<MapStringString>()
 
@@ -89,19 +87,19 @@ class FileExtensionMapFactory(
         return asm
     }
 
-    override fun addRoot(asm: List<MapStringString>, root: Any) {
-        (asm as MutableList<MapStringString>).add(root as MapStringString)
+    override fun addRoot(asm: List<MapStringString>, root: Any): Boolean {
+       return (asm as MutableList<MapStringString>).add(root as MapStringString)
     }
 
-    override fun removeRoot(asm: List<MapStringString>, root: Any) {
-        Unit
+    override fun removeRoot(asm: List<MapStringString>, root: Any): Boolean {
+        return false
     }
 
     override fun createStructureValue(possiblyQualifiedTypeName: PossiblyQualifiedName, constructorArgs: Map<String, TypedObject<Any>>): TypedObject<Any> {
         return when (possiblyQualifiedTypeName.value) {
             "MapEntry" -> {
                 val pairType = StdLibDefault.Pair.type(listOf())
-                TypedObjectByReflection(pairType, Pair(constructorArgs[""],constructorArgs[""]))
+                TypedObjectAny(pairType, Pair(constructorArgs[""],constructorArgs[""]))
             }
             else -> super.createStructureValue(possiblyQualifiedTypeName, constructorArgs)
         }
