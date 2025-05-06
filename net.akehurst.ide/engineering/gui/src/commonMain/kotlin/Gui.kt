@@ -65,18 +65,24 @@ class Gui(
         it.editorState.autocompleteState.itemLabelLength = 20
         it.editorState.autocompleteState.itemTextLength = 60
     }
-    val aglEditor: AglEditor<Any, ContextAsmSimple> by lazy {
+
+    var projectContext = ContextAsmSimple()
+    val aglEditor by lazy {
         Agl.attachToComposeEditor<Asm, ContextAsmSimple>(
             languageService,
             languageDefinition,
-            { Agl.options {  } },
+            { Agl.options {
+                semanticAnalysis {
+                    context(projectContext)
+                }
+            } },
             editorId,
             editorOptions,
             logFunction,
             composeableEditor
         ).also {
             logger.logTrace { "Agl attachToComposeEditor finished" }
-        } as AglEditor<Any, ContextAsmSimple>
+        }
     }
 
     val state = GuiState()

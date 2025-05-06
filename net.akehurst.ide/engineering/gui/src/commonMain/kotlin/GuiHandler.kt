@@ -8,6 +8,7 @@ import net.akehurst.kotlinx.filesystem.FileHandle
 import net.akehurst.kotlinx.filesystem.UserFileSystem
 import net.akehurst.kotlinx.text.toRegexFromGlob
 import net.akehurst.language.agl.Agl
+import net.akehurst.language.agl.simple.ContextAsmSimple
 import net.akehurst.language.api.processor.CrossReferenceString
 import net.akehurst.language.api.processor.FormatString
 import net.akehurst.language.api.processor.GrammarString
@@ -31,6 +32,7 @@ class GuiHandler(
         logger.logTrace { "actionOpenProject" }
         val projectDir = selectProjectDirectoryFromDialog()
         projectDir?.let { action.invoke(it) }
+        gui.projectContext = ContextAsmSimple()
         logger.logTrace { "actionOpenProject finished" }
     }
 
@@ -84,12 +86,11 @@ class GuiHandler(
 
     suspend fun selectTab(tabIndex: Int, fileHandle: FileHandle) {
         fileHandle.readContent()?.let {
-            setLanguageForExtension(fileHandle.extension)
+            setLanguageForExtension(fileHandle.name)
             gui.composeableEditor.rawText = it
             gui.state.selectedFile = gui.state.openFiles.firstOrNull { it.fileHandle == fileHandle }
         }
     }
-
 
     suspend fun closeTab(tabIndex: Int, fileHandle: FileHandle) {
         val ts = gui.state.openFiles.firstOrNull { it.fileHandle == fileHandle }
